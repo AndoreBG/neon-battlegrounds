@@ -1,18 +1,27 @@
 class AudioManager {
     constructor() {
         this.enabled = true;
+        this.debug = false;
     }
 
     playMusic(key) {
-        // Hook futuro
+        this.log('music:start', key);
     }
 
     stopMusic() {
-        // Hook futuro
+        this.log('music:stop');
     }
 
     playSFX(key) {
-        // Hook futuro
+        this.log('sfx', key);
+    }
+
+    log(type, key = '') {
+        if (!this.debug) {
+            return;
+        }
+
+        console.info(`[audio] ${type}`, key);
     }
 }
 

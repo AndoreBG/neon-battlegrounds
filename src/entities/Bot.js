@@ -45,15 +45,27 @@ export class Bot {
 
         this.trails = [];
 
-        this.moveDelay = this.getDifficultyDelay();
+        this.baseMoveDelay = this.getDifficultyDelay();
+        this.moveDelay = this.baseMoveDelay;
+        this.speedBoostTimer = null;
+
+        this.glow = scene.add.rectangle(
+            0,
+            0,
+            GRID_SIZE,
+            GRID_SIZE,
+            color,
+            0.22
+        );
 
         this.rectangle = scene.add.rectangle(
             0,
             0,
-            GRID_SIZE - 4,
-            GRID_SIZE - 4,
+            GRID_SIZE - 6,
+            GRID_SIZE - 6,
             color
         );
+        this.rectangle.setStrokeStyle(2, 0xffffff, 0.7);
 
         this.updatePosition();
     }
@@ -112,7 +124,8 @@ export class Bot {
                 this.direction =
                     MediumAI.getDirection(
                         this,
-                        this.gridSystem
+                        this.gridSystem,
+                        this.scene.arenaSystem
                     );
 
                 break;
@@ -123,7 +136,8 @@ export class Bot {
                     HardAI.getDirection(
                         this,
                         this.gridSystem,
-                        this.player
+                        this.player,
+                        this.scene.arenaSystem
                     );
 
                 break;
@@ -169,6 +183,36 @@ export class Bot {
             ARENA_OFFSET_Y +
             (this.gridY * GRID_SIZE) +
             GRID_SIZE / 2;
+
+        this.glow.x = this.rectangle.x;
+        this.glow.y = this.rectangle.y;
+    }
+
+    applySpeedBoost(multiplier, duration) {
+
+        this.moveDelay =
+            Math.max(
+                40,
+                Math.floor(this.baseMoveDelay * multiplier)
+            );
+
+        this.rectangle.setScale(1.12);
+        this.glow.setAlpha(0.42);
+
+        if (this.speedBoostTimer) {
+            this.speedBoostTimer.remove(false);
+        }
+
+        this.speedBoostTimer =
+            this.scene.time.delayedCall(
+                duration,
+                () => {
+                    this.moveDelay = this.baseMoveDelay;
+                    this.rectangle.setScale(1);
+                    this.glow.setAlpha(0.22);
+                    this.speedBoostTimer = null;
+                }
+            );
     }
 
     die() {
@@ -176,5 +220,6 @@ export class Bot {
         this.alive = false;
 
         this.rectangle.setFillStyle(0xffffff);
+        this.glow.setFillStyle(0xffffff, 0.18);
     }
 }

@@ -3,7 +3,8 @@ import {
     GRID_ROWS,
     GRID_SIZE,
     ARENA_OFFSET_X,
-    ARENA_OFFSET_Y
+    ARENA_OFFSET_Y,
+    COLORS
 } from '../utils/Constants.js';
 
 export class ArenaSystem {
@@ -47,6 +48,13 @@ export class ArenaSystem {
 
     startWarning() {
 
+        if (
+            this.currentBounds.right - this.currentBounds.left <= 6 ||
+            this.currentBounds.bottom - this.currentBounds.top <= 6
+        ) {
+            return;
+        }
+
         const nextBounds = {
             left: this.currentBounds.left + 1,
             right: this.currentBounds.right - 1,
@@ -75,13 +83,21 @@ export class ArenaSystem {
 
             for (let y = 0; y < GRID_ROWS; y++) {
 
-                const outside =
-                    x < bounds.left ||
-                    x > bounds.right ||
-                    y < bounds.top ||
-                    y > bounds.bottom;
+                const inCurrentBounds =
+                    this.isInsideBounds(
+                        x,
+                        y,
+                        this.currentBounds
+                    );
 
-                if (!outside) {
+                const outsideNextBounds =
+                    !this.isInsideBounds(
+                        x,
+                        y,
+                        bounds
+                    );
+
+                if (!inCurrentBounds || !outsideNextBounds) {
                     continue;
                 }
 
@@ -97,7 +113,7 @@ export class ArenaSystem {
 
                         GRID_SIZE - 2,
                         GRID_SIZE - 2,
-                        0xaa0000
+                        COLORS.WARNING
                     );
 
                 this.scene.tweens.add({
@@ -121,13 +137,21 @@ export class ArenaSystem {
 
             for (let y = 0; y < GRID_ROWS; y++) {
 
-                const outside =
-                    x < bounds.left ||
-                    x > bounds.right ||
-                    y < bounds.top ||
-                    y > bounds.bottom;
+                const inCurrentBounds =
+                    this.isInsideBounds(
+                        x,
+                        y,
+                        this.currentBounds
+                    );
 
-                if (!outside) {
+                const outsideNextBounds =
+                    !this.isInsideBounds(
+                        x,
+                        y,
+                        bounds
+                    );
+
+                if (!inCurrentBounds || !outsideNextBounds) {
                     continue;
                 }
 
@@ -162,11 +186,20 @@ export class ArenaSystem {
 
     isInsideActiveArena(x, y) {
 
+        return this.isInsideBounds(
+            x,
+            y,
+            this.currentBounds
+        );
+    }
+
+    isInsideBounds(x, y, bounds) {
+
         return (
-            x >= this.currentBounds.left &&
-            x <= this.currentBounds.right &&
-            y >= this.currentBounds.top &&
-            y <= this.currentBounds.bottom
+            x >= bounds.left &&
+            x <= bounds.right &&
+            y >= bounds.top &&
+            y <= bounds.bottom
         );
     }
 

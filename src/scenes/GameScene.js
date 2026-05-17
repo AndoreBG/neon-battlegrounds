@@ -12,9 +12,13 @@ import { gameManager } from '../managers/GameManager.js';
 import { GridSystem } from '../systems/GridSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
 import { ArenaSystem } from '../systems/ArenaSystem.js';
+import { PowerUpSystem } from '../systems/PowerUpSystem.js';
 
 import { Player } from '../entities/Player.js';
 import { Bot } from '../entities/Bot.js';
+
+import { audioManager } from '../managers/AudioManager.js';
+import { networkManager } from '../managers/NetworkManager.js';
 
 export class GameScene extends Phaser.Scene {
 
@@ -38,11 +42,23 @@ export class GameScene extends Phaser.Scene {
         this.arenaSystem =
             new ArenaSystem(this);
 
+        this.powerUpSystem =
+            new PowerUpSystem(
+                this,
+                this.gridSystem,
+                this.arenaSystem
+            );
+
         this.drawArena();
 
         this.createEntities();
 
         this.createHUD();
+
+        audioManager.playMusic('match');
+        networkManager.send('match:start', {
+            difficulty: gameManager.getDifficulty()
+        });
 
         this.input.keyboard.on(
             'keydown-ESC',
@@ -53,22 +69,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     createEntities() {
-
-        const difficulty =
-            gameManager.getDifficulty();
-
-        let botColor = COLORS.EASY;
-
-        switch (difficulty) {
-
-            case 'MEDIO':
-                botColor = COLORS.MEDIUM;
-                break;
-
-            case 'DIFICIL':
-                botColor = COLORS.HARD;
-                break;
-        }
 
         this.player = new Player(
             this,
@@ -86,8 +86,8 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 GRID_COLS - 2,
                 1,
-                botColor,
-                difficulty,
+                COLORS.EASY,
+                'FACIL',
                 this.player
             )
         );
@@ -98,8 +98,8 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 GRID_COLS - 2,
                 GRID_ROWS - 2,
-                botColor,
-                difficulty,
+                COLORS.MEDIUM,
+                'MEDIO',
                 this.player
             )
         );
@@ -110,8 +110,8 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 Math.floor(GRID_COLS / 2),
                 1,
-                botColor,
-                difficulty,
+                COLORS.HARD,
+                'DIFICIL',
                 this.player
             )
         );
@@ -119,12 +119,30 @@ export class GameScene extends Phaser.Scene {
 
     drawArena() {
 
+        const background = this.add.graphics();
+
+        background.fillStyle(0x07101c, 1);
+        background.fillRect(
+            ARENA_OFFSET_X - 18,
+            ARENA_OFFSET_Y - 18,
+            (GRID_COLS * GRID_SIZE) + 36,
+            (GRID_ROWS * GRID_SIZE) + 36
+        );
+
+        background.lineStyle(3, COLORS.PLAYER, 0.4);
+        background.strokeRect(
+            ARENA_OFFSET_X - 2,
+            ARENA_OFFSET_Y - 2,
+            GRID_COLS * GRID_SIZE + 4,
+            GRID_ROWS * GRID_SIZE + 4
+        );
+
         const graphics = this.add.graphics();
 
         graphics.lineStyle(
             1,
             COLORS.GRID,
-            1
+            0.9
         );
 
         for (let x = 0; x <= GRID_COLS; x++) {
@@ -159,6 +177,16 @@ export class GameScene extends Phaser.Scene {
         }
 
         graphics.strokePath();
+
+        const glow = this.add.graphics();
+
+        glow.lineStyle(8, COLORS.PLAYER, 0.08);
+        glow.strokeRect(
+            ARENA_OFFSET_X - 5,
+            ARENA_OFFSET_Y - 5,
+            GRID_COLS * GRID_SIZE + 10,
+            GRID_ROWS * GRID_SIZE + 10
+        );
     }
 
     createHUD() {
@@ -212,6 +240,14 @@ export class GameScene extends Phaser.Scene {
             bot.update(time);
         }
 
+        this.powerUpSystem.update(
+            time,
+            [
+                this.player,
+                ...this.bots
+            ]
+        );
+
         this.checkCollisions();
 
         this.checkArenaDeaths();
@@ -255,6 +291,7 @@ export class GameScene extends Phaser.Scene {
         ) {
 
             entity.die();
+            audioManager.playSFX('entity-death');
         }
     }
 
@@ -281,6 +318,7 @@ export class GameScene extends Phaser.Scene {
             if (!inside) {
 
                 entity.die();
+                audioManager.playSFX('arena-death');
             }
         }
     }
@@ -314,6 +352,13 @@ export class GameScene extends Phaser.Scene {
         this.gameEnded = true;
 
         gameManager.setWinner(playerWon);
+        audioManager.stopMusic();
+        audioManager.playSFX(
+            playerWon ? 'victory' : 'defeat'
+        );
+        networkManager.send('match:end', {
+            playerWon
+        });
 
         this.time.delayedCall(
             1000,

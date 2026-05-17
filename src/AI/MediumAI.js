@@ -2,7 +2,7 @@ import { DIRECTIONS } from '../utils/Constants.js';
 
 export class MediumAI {
 
-    static getDirection(bot, gridSystem) {
+    static getDirection(bot, gridSystem, arenaSystem = null) {
 
         let bestDirection = bot.direction;
         let bestScore = -9999;
@@ -19,7 +19,13 @@ export class MediumAI {
             const nx = bot.gridX + dir.x;
             const ny = bot.gridY + dir.y;
 
-            if (gridSystem.isOccupied(nx, ny)) {
+            if (
+                gridSystem.isOccupied(nx, ny) ||
+                (
+                    arenaSystem &&
+                    !arenaSystem.isInsideActiveArena(nx, ny)
+                )
+            ) {
                 continue;
             }
 
@@ -27,7 +33,8 @@ export class MediumAI {
                 this.calculateFreeSpace(
                     gridSystem,
                     nx,
-                    ny
+                    ny,
+                    arenaSystem
                 );
 
             if (score > bestScore) {
@@ -40,7 +47,7 @@ export class MediumAI {
         return bestDirection;
     }
 
-    static calculateFreeSpace(gridSystem, x, y) {
+    static calculateFreeSpace(gridSystem, x, y, arenaSystem = null) {
 
         let score = 0;
 
@@ -49,7 +56,13 @@ export class MediumAI {
             const nx = x + dir.x;
             const ny = y + dir.y;
 
-            if (!gridSystem.isOccupied(nx, ny)) {
+            if (
+                !gridSystem.isOccupied(nx, ny) &&
+                (
+                    !arenaSystem ||
+                    arenaSystem.isInsideActiveArena(nx, ny)
+                )
+            ) {
                 score++;
             }
         }

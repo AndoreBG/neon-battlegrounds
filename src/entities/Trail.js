@@ -13,12 +13,23 @@ export class Trail {
         this.gridX = gridX;
         this.gridY = gridY;
 
+        this.glow = scene.add.rectangle(
+            ARENA_OFFSET_X + (gridX * GRID_SIZE) + GRID_SIZE / 2,
+            ARENA_OFFSET_Y + (gridY * GRID_SIZE) + GRID_SIZE / 2,
+            GRID_SIZE,
+            GRID_SIZE,
+            color,
+            0.22
+        );
+
         this.rectangle = scene.add.rectangle(
             ARENA_OFFSET_X + (gridX * GRID_SIZE) + GRID_SIZE / 2,
             ARENA_OFFSET_Y + (gridY * GRID_SIZE) + GRID_SIZE / 2,
-            GRID_SIZE - 2,
-            GRID_SIZE - 2,
+            GRID_SIZE - 5,
+            GRID_SIZE - 5,
             color
         );
+
+        this.rectangle.setAlpha(0.78);
     }
 }
