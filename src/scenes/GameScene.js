@@ -4,14 +4,14 @@ import {
     GRID_SIZE,
     ARENA_OFFSET_X,
     ARENA_OFFSET_Y,
-    COLORS,
-    DIFFICULTY
+    COLORS
 } from '../utils/Constants.js';
 
 import { gameManager } from '../managers/GameManager.js';
 
 import { GridSystem } from '../systems/GridSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
+import { ArenaSystem } from '../systems/ArenaSystem.js';
 
 import { Player } from '../entities/Player.js';
 import { Bot } from '../entities/Bot.js';
@@ -28,10 +28,15 @@ export class GameScene extends Phaser.Scene {
 
         this.gameEnded = false;
 
+        this.matchStartTime = this.time.now;
+
         this.gridSystem = new GridSystem(
             GRID_COLS,
             GRID_ROWS
         );
+
+        this.arenaSystem =
+            new ArenaSystem(this);
 
         this.drawArena();
 
@@ -39,12 +44,31 @@ export class GameScene extends Phaser.Scene {
 
         this.createHUD();
 
-        this.input.keyboard.on('keydown-ESC', () => {
-            this.scene.start('MenuScene');
-        });
+        this.input.keyboard.on(
+            'keydown-ESC',
+            () => {
+                this.scene.start('MenuScene');
+            }
+        );
     }
 
     createEntities() {
+
+        const difficulty =
+            gameManager.getDifficulty();
+
+        let botColor = COLORS.EASY;
+
+        switch (difficulty) {
+
+            case 'MEDIO':
+                botColor = COLORS.MEDIUM;
+                break;
+
+            case 'DIFICIL':
+                botColor = COLORS.HARD;
+                break;
+        }
 
         this.player = new Player(
             this,
@@ -54,19 +78,6 @@ export class GameScene extends Phaser.Scene {
             COLORS.PLAYER
         );
 
-        const difficulty =
-            gameManager.getDifficulty();
-
-        let botColor = COLORS.EASY;
-
-        if (difficulty === DIFFICULTY.MEDIO) {
-            botColor = COLORS.MEDIUM;
-        }
-
-        if (difficulty === DIFFICULTY.DIFICIL) {
-            botColor = COLORS.HARD;
-        }
-
         this.bots = [];
 
         this.bots.push(
@@ -75,7 +86,9 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 GRID_COLS - 2,
                 1,
-                botColor
+                botColor,
+                difficulty,
+                this.player
             )
         );
 
@@ -85,7 +98,9 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 GRID_COLS - 2,
                 GRID_ROWS - 2,
-                botColor
+                botColor,
+                difficulty,
+                this.player
             )
         );
 
@@ -95,7 +110,9 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 Math.floor(GRID_COLS / 2),
                 1,
-                botColor
+                botColor,
+                difficulty,
+                this.player
             )
         );
     }
@@ -104,7 +121,11 @@ export class GameScene extends Phaser.Scene {
 
         const graphics = this.add.graphics();
 
-        graphics.lineStyle(1, COLORS.GRID, 1);
+        graphics.lineStyle(
+            1,
+            COLORS.GRID,
+            1
+        );
 
         for (let x = 0; x <= GRID_COLS; x++) {
 
@@ -115,7 +136,8 @@ export class GameScene extends Phaser.Scene {
 
             graphics.lineTo(
                 ARENA_OFFSET_X + (x * GRID_SIZE),
-                ARENA_OFFSET_Y + (GRID_ROWS * GRID_SIZE)
+                ARENA_OFFSET_Y +
+                (GRID_ROWS * GRID_SIZE)
             );
         }
 
@@ -123,12 +145,16 @@ export class GameScene extends Phaser.Scene {
 
             graphics.moveTo(
                 ARENA_OFFSET_X,
-                ARENA_OFFSET_Y + (y * GRID_SIZE)
+                ARENA_OFFSET_Y +
+                (y * GRID_SIZE)
             );
 
             graphics.lineTo(
-                ARENA_OFFSET_X + (GRID_COLS * GRID_SIZE),
-                ARENA_OFFSET_Y + (y * GRID_SIZE)
+                ARENA_OFFSET_X +
+                (GRID_COLS * GRID_SIZE),
+
+                ARENA_OFFSET_Y +
+                (y * GRID_SIZE)
             );
         }
 
@@ -146,17 +172,23 @@ export class GameScene extends Phaser.Scene {
                 color: '#ffffff'
             }
         );
-
-        this.updateHUD();
     }
 
-    updateHUD() {
+    updateHUD(elapsedTime) {
 
         const aliveBots =
-            this.bots.filter(bot => bot.alive).length;
+            this.bots.filter(
+                bot => bot.alive
+            ).length;
+
+        const remaining =
+            this.arenaSystem.getRemainingTime(
+                elapsedTime
+            );
 
         this.hudText.setText([
             `Bots vivos: ${aliveBots}`,
+            `Próximo fechamento: ${remaining}s`,
             `ESC - Menu`
         ]);
     }
@@ -167,23 +199,33 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
+        const elapsedTime =
+            time - this.matchStartTime;
+
+        this.arenaSystem.update(
+            elapsedTime
+        );
+
         this.player.update(time);
 
         for (const bot of this.bots) {
-
             bot.update(time);
         }
 
         this.checkCollisions();
 
+        this.checkArenaDeaths();
+
         this.checkVictory();
 
-        this.updateHUD();
+        this.updateHUD(elapsedTime);
     }
 
     checkCollisions() {
 
-        this.checkEntityCollision(this.player);
+        this.checkEntityCollision(
+            this.player
+        );
 
         for (const bot of this.bots) {
 
@@ -216,6 +258,33 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    checkArenaDeaths() {
+
+        const entities = [
+            this.player,
+            ...this.bots
+        ];
+
+        for (const entity of entities) {
+
+            if (!entity.alive) {
+                continue;
+            }
+
+            const inside =
+                this.arenaSystem
+                    .isInsideActiveArena(
+                        entity.gridX,
+                        entity.gridY
+                    );
+
+            if (!inside) {
+
+                entity.die();
+            }
+        }
+    }
+
     checkVictory() {
 
         if (!this.player.alive) {
@@ -226,7 +295,9 @@ export class GameScene extends Phaser.Scene {
         }
 
         const aliveBots =
-            this.bots.filter(bot => bot.alive);
+            this.bots.filter(
+                bot => bot.alive
+            );
 
         if (aliveBots.length === 0) {
 
@@ -244,9 +315,14 @@ export class GameScene extends Phaser.Scene {
 
         gameManager.setWinner(playerWon);
 
-        this.time.delayedCall(1000, () => {
+        this.time.delayedCall(
+            1000,
+            () => {
 
-            this.scene.start('GameOverScene');
-        });
+                this.scene.start(
+                    'GameOverScene'
+                );
+            }
+        );
     }
 }

@@ -2,15 +2,27 @@ import {
     GRID_SIZE,
     ARENA_OFFSET_X,
     ARENA_OFFSET_Y,
-    DIRECTIONS,
-    MOVE_DELAY
+    MOVE_DELAY,
+    DIFFICULTY
 } from '../utils/Constants.js';
 
 import { Trail } from './Trail.js';
 
+import { EasyAI } from '../ai/EasyAI.js';
+import { MediumAI } from '../ai/MediumAI.js';
+import { HardAI } from '../ai/HardAI.js';
+
 export class Bot {
 
-    constructor(scene, gridSystem, x, y, color) {
+    constructor(
+        scene,
+        gridSystem,
+        x,
+        y,
+        color,
+        difficulty,
+        player
+    ) {
 
         this.scene = scene;
 
@@ -19,7 +31,7 @@ export class Bot {
         this.gridX = x;
         this.gridY = y;
 
-        this.direction = DIRECTIONS.LEFT;
+        this.direction = { x: -1, y: 0 };
 
         this.moveTimer = 0;
 
@@ -27,7 +39,13 @@ export class Bot {
 
         this.color = color;
 
+        this.difficulty = difficulty;
+
+        this.player = player;
+
         this.trails = [];
+
+        this.moveDelay = this.getDifficultyDelay();
 
         this.rectangle = scene.add.rectangle(
             0,
@@ -38,6 +56,24 @@ export class Bot {
         );
 
         this.updatePosition();
+    }
+
+    getDifficultyDelay() {
+
+        switch (this.difficulty) {
+
+            case DIFFICULTY.FACIL:
+                return MOVE_DELAY + 60;
+
+            case DIFFICULTY.MEDIO:
+                return MOVE_DELAY;
+
+            case DIFFICULTY.DIFICIL:
+                return MOVE_DELAY - 25;
+
+            default:
+                return MOVE_DELAY;
+        }
     }
 
     update(time) {
@@ -52,29 +88,45 @@ export class Bot {
 
             this.move();
 
-            this.moveTimer = time + MOVE_DELAY;
+            this.moveTimer =
+                time + this.moveDelay;
         }
     }
 
     chooseDirection() {
 
-        const possible = [];
+        switch (this.difficulty) {
 
-        for (const dir of Object.values(DIRECTIONS)) {
+            case DIFFICULTY.FACIL:
 
-            const nx = this.gridX + dir.x;
-            const ny = this.gridY + dir.y;
+                this.direction =
+                    EasyAI.getDirection(
+                        this,
+                        this.gridSystem
+                    );
 
-            if (!this.gridSystem.isOccupied(nx, ny)) {
+                break;
 
-                possible.push(dir);
-            }
-        }
+            case DIFFICULTY.MEDIO:
 
-        if (possible.length > 0) {
+                this.direction =
+                    MediumAI.getDirection(
+                        this,
+                        this.gridSystem
+                    );
 
-            this.direction =
-                Phaser.Utils.Array.GetRandom(possible);
+                break;
+
+            case DIFFICULTY.DIFICIL:
+
+                this.direction =
+                    HardAI.getDirection(
+                        this,
+                        this.gridSystem,
+                        this.player
+                    );
+
+                break;
         }
     }
 

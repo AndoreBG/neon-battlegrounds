@@ -1,10 +1,10 @@
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
 
-export const GRID_SIZE = 32;
+export const GRID_SIZE = 16;
 
-export const GRID_COLS = 20;
-export const GRID_ROWS = 20;
+export const GRID_COLS = 40;
+export const GRID_ROWS = 40;
 
 export const ARENA_OFFSET_X =
     (GAME_WIDTH - (GRID_COLS * GRID_SIZE)) / 2;
