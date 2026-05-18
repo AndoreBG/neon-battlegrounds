@@ -1,10 +1,10 @@
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
 
-export const GRID_SIZE = 24;
+export const GRID_SIZE = 16;
 
-export const GRID_COLS = 20;
-export const GRID_ROWS = 20;
+export const GRID_COLS = 40;
+export const GRID_ROWS = 40;
 
 export const ARENA_OFFSET_X =
     (GAME_WIDTH - (GRID_COLS * GRID_SIZE)) / 2;
@@ -13,6 +13,15 @@ export const ARENA_OFFSET_Y =
     (GAME_HEIGHT - (GRID_ROWS * GRID_SIZE)) / 2;
 
 export const MOVE_DELAY = 120;
+
+export const DEGUB = false;
+
+export const ARENA_TIMERS = {
+    INITIAL_SHRINK_DELAY: 5000,
+    SHRINK_INTERVAL: 3000,
+    WARNING_DURATION: 3000,
+    WARNING_BLINK_DURATION: 400
+};
 
 export const POWER_UP = {
     SPAWN_DELAY: 4000,

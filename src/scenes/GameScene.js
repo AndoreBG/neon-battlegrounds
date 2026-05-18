@@ -4,7 +4,9 @@ import {
     GRID_SIZE,
     ARENA_OFFSET_X,
     ARENA_OFFSET_Y,
-    COLORS
+    COLORS,
+    DIFFICULTY,
+    DEGUB
 } from '../utils/Constants.js';
 
 import { gameManager } from '../managers/GameManager.js';
@@ -28,11 +30,9 @@ export class GameScene extends Phaser.Scene {
 
     create() {
 
-        this.cameras.main.fadeIn(300);
-
         this.gameEnded = false;
 
-        this.matchStartTime = this.time.now;
+        this.matchElapsedTime = 0;
 
         this.gridSystem = new GridSystem(
             GRID_COLS,
@@ -70,6 +70,13 @@ export class GameScene extends Phaser.Scene {
 
     createEntities() {
 
+        const difficulty =
+            gameManager.getDifficulty() ||
+            DIFFICULTY.FACIL;
+
+        const botColor =
+            this.getBotColor(difficulty);
+
         this.player = new Player(
             this,
             this.gridSystem,
@@ -86,8 +93,8 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 GRID_COLS - 2,
                 1,
-                COLORS.EASY,
-                'FACIL',
+                botColor,
+                difficulty,
                 this.player
             )
         );
@@ -98,8 +105,8 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 GRID_COLS - 2,
                 GRID_ROWS - 2,
-                COLORS.MEDIUM,
-                'MEDIO',
+                botColor,
+                difficulty,
                 this.player
             )
         );
@@ -110,32 +117,30 @@ export class GameScene extends Phaser.Scene {
                 this.gridSystem,
                 Math.floor(GRID_COLS / 2),
                 1,
-                COLORS.HARD,
-                'DIFICIL',
+                botColor,
+                difficulty,
                 this.player
             )
         );
     }
 
+    getBotColor(difficulty) {
+
+        switch (difficulty) {
+
+            case DIFFICULTY.MEDIO:
+                return COLORS.MEDIUM;
+
+            case DIFFICULTY.DIFICIL:
+                return COLORS.HARD;
+
+            case DIFFICULTY.FACIL:
+            default:
+                return COLORS.EASY;
+        }
+    }
+
     drawArena() {
-
-        const background = this.add.graphics();
-
-        background.fillStyle(0x07101c, 1);
-        background.fillRect(
-            ARENA_OFFSET_X - 18,
-            ARENA_OFFSET_Y - 18,
-            (GRID_COLS * GRID_SIZE) + 36,
-            (GRID_ROWS * GRID_SIZE) + 36
-        );
-
-        background.lineStyle(3, COLORS.PLAYER, 0.4);
-        background.strokeRect(
-            ARENA_OFFSET_X - 2,
-            ARENA_OFFSET_Y - 2,
-            GRID_COLS * GRID_SIZE + 4,
-            GRID_ROWS * GRID_SIZE + 4
-        );
 
         const graphics = this.add.graphics();
 
@@ -178,18 +183,13 @@ export class GameScene extends Phaser.Scene {
 
         graphics.strokePath();
 
-        const glow = this.add.graphics();
-
-        glow.lineStyle(8, COLORS.PLAYER, 0.08);
-        glow.strokeRect(
-            ARENA_OFFSET_X - 5,
-            ARENA_OFFSET_Y - 5,
-            GRID_COLS * GRID_SIZE + 10,
-            GRID_ROWS * GRID_SIZE + 10
-        );
     }
 
     createHUD() {
+
+        if (!DEGUB) {
+            return;
+        }
 
         this.hudText = this.add.text(
             40,
@@ -204,6 +204,10 @@ export class GameScene extends Phaser.Scene {
 
     updateHUD(elapsedTime) {
 
+        if (!DEGUB || !this.hudText) {
+            return;
+        }
+
         const aliveBots =
             this.bots.filter(
                 bot => bot.alive
@@ -216,22 +220,21 @@ export class GameScene extends Phaser.Scene {
 
         this.hudText.setText([
             `Bots vivos: ${aliveBots}`,
-            `Próximo fechamento: ${remaining}s`,
+            `Proximo fechamento: ${remaining}s`,
             `ESC - Menu`
         ]);
     }
 
-    update(time) {
+    update(time, delta) {
 
         if (this.gameEnded) {
             return;
         }
 
-        const elapsedTime =
-            time - this.matchStartTime;
+        this.matchElapsedTime += delta;
 
         this.arenaSystem.update(
-            elapsedTime
+            this.matchElapsedTime
         );
 
         this.player.update(time);
@@ -241,7 +244,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.powerUpSystem.update(
-            time,
+            this.matchElapsedTime,
             [
                 this.player,
                 ...this.bots
@@ -254,7 +257,7 @@ export class GameScene extends Phaser.Scene {
 
         this.checkVictory();
 
-        this.updateHUD(elapsedTime);
+        this.updateHUD(this.matchElapsedTime);
     }
 
     checkCollisions() {

@@ -32,23 +32,13 @@ export class Player {
 
         this.trails = [];
 
-        this.glow = scene.add.rectangle(
-            0,
-            0,
-            GRID_SIZE,
-            GRID_SIZE,
-            color,
-            0.26
-        );
-
         this.rectangle = scene.add.rectangle(
             0,
             0,
-            GRID_SIZE - 6,
-            GRID_SIZE - 6,
+            GRID_SIZE - 4,
+            GRID_SIZE - 4,
             color
         );
-        this.rectangle.setStrokeStyle(2, 0xffffff, 0.85);
 
         this.updatePosition();
 
@@ -169,8 +159,6 @@ export class Player {
             (this.gridY * GRID_SIZE) +
             GRID_SIZE / 2;
 
-        this.glow.x = this.rectangle.x;
-        this.glow.y = this.rectangle.y;
     }
 
     applySpeedBoost(multiplier, duration) {
@@ -181,9 +169,6 @@ export class Player {
                 Math.floor(MOVE_DELAY * multiplier)
             );
 
-        this.rectangle.setScale(1.12);
-        this.glow.setAlpha(0.48);
-
         if (this.speedBoostTimer) {
             this.speedBoostTimer.remove(false);
         }
@@ -193,8 +178,6 @@ export class Player {
                 duration,
                 () => {
                     this.moveDelay = MOVE_DELAY;
-                    this.rectangle.setScale(1);
-                    this.glow.setAlpha(0.26);
                     this.speedBoostTimer = null;
                 }
             );
@@ -205,6 +188,5 @@ export class Player {
         this.alive = false;
 
         this.rectangle.setFillStyle(0xffffff);
-        this.glow.setFillStyle(0xffffff, 0.2);
     }
 }

@@ -20,13 +20,16 @@ export class PowerUpSystem {
 
         this.activePowerUp = null;
         this.nextSpawnTime =
-            scene.time.now + POWER_UP.SPAWN_DELAY;
+            POWER_UP.SPAWN_DELAY;
     }
 
-    update(time, entities) {
+    update(elapsedTime, entities) {
 
-        if (!this.activePowerUp && time >= this.nextSpawnTime) {
-            this.spawn(entities);
+        if (
+            !this.activePowerUp &&
+            elapsedTime >= this.nextSpawnTime
+        ) {
+            this.spawn(entities, elapsedTime);
         }
 
         if (!this.activePowerUp) {
@@ -43,13 +46,13 @@ export class PowerUpSystem {
                 entity.gridX === this.activePowerUp.gridX &&
                 entity.gridY === this.activePowerUp.gridY
             ) {
-                this.collect(entity);
+                this.collect(entity, elapsedTime);
                 break;
             }
         }
     }
 
-    spawn(entities) {
+    spawn(entities, elapsedTime) {
 
         const freeCells = [];
 
@@ -67,7 +70,7 @@ export class PowerUpSystem {
 
         if (freeCells.length === 0) {
             this.nextSpawnTime =
-                this.scene.time.now + POWER_UP.RESPAWN_DELAY;
+                elapsedTime + POWER_UP.RESPAWN_DELAY;
             return;
         }
 
@@ -77,8 +80,7 @@ export class PowerUpSystem {
         this.activePowerUp = {
             gridX: cell.x,
             gridY: cell.y,
-            glow: this.createBlock(cell.x, cell.y, GRID_SIZE + 10, 0.18),
-            core: this.createBlock(cell.x, cell.y, GRID_SIZE - 8, 1)
+            core: this.createBlock(cell.x, cell.y, GRID_SIZE - 6)
         };
 
         this.activePowerUp.core.setStrokeStyle(
@@ -86,21 +88,6 @@ export class PowerUpSystem {
             0xffffff,
             0.9
         );
-
-        this.scene.tweens.add({
-            targets: [
-                this.activePowerUp.core,
-                this.activePowerUp.glow
-            ],
-            scale: 1.18,
-            alpha: {
-                from: 0.55,
-                to: 1
-            },
-            duration: 500,
-            yoyo: true,
-            repeat: -1
-        });
     }
 
     canSpawnAt(x, y, entities) {
@@ -120,19 +107,18 @@ export class PowerUpSystem {
         ));
     }
 
-    createBlock(gridX, gridY, size, alpha) {
+    createBlock(gridX, gridY, size) {
 
         return this.scene.add.rectangle(
             ARENA_OFFSET_X + (gridX * GRID_SIZE) + GRID_SIZE / 2,
             ARENA_OFFSET_Y + (gridY * GRID_SIZE) + GRID_SIZE / 2,
             size,
             size,
-            COLORS.POWER_UP,
-            alpha
+            COLORS.POWER_UP
         );
     }
 
-    collect(entity) {
+    collect(entity, elapsedTime) {
 
         if (entity.applySpeedBoost) {
             entity.applySpeedBoost(
@@ -146,7 +132,7 @@ export class PowerUpSystem {
         this.destroyActivePowerUp();
 
         this.nextSpawnTime =
-            this.scene.time.now + POWER_UP.RESPAWN_DELAY;
+            elapsedTime + POWER_UP.RESPAWN_DELAY;
     }
 
     destroyActivePowerUp() {
@@ -156,7 +142,6 @@ export class PowerUpSystem {
         }
 
         this.activePowerUp.core.destroy();
-        this.activePowerUp.glow.destroy();
         this.activePowerUp = null;
     }
 }

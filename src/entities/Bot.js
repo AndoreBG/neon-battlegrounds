@@ -3,14 +3,11 @@ import {
     ARENA_OFFSET_X,
     ARENA_OFFSET_Y,
     MOVE_DELAY,
-    DIFFICULTY
+    DIFFICULTY,
+    DIRECTIONS
 } from '../utils/Constants.js';
 
 import { Trail } from './Trail.js';
-
-import { EasyAI } from '../ai/EasyAI.js';
-import { MediumAI } from '../ai/MediumAI.js';
-import { HardAI } from '../ai/HardAI.js';
 
 export class Bot {
 
@@ -49,23 +46,13 @@ export class Bot {
         this.moveDelay = this.baseMoveDelay;
         this.speedBoostTimer = null;
 
-        this.glow = scene.add.rectangle(
-            0,
-            0,
-            GRID_SIZE,
-            GRID_SIZE,
-            color,
-            0.22
-        );
-
         this.rectangle = scene.add.rectangle(
             0,
             0,
-            GRID_SIZE - 6,
-            GRID_SIZE - 6,
+            GRID_SIZE - 4,
+            GRID_SIZE - 4,
             color
         );
-        this.rectangle.setStrokeStyle(2, 0xffffff, 0.7);
 
         this.updatePosition();
     }
@@ -184,8 +171,6 @@ export class Bot {
             (this.gridY * GRID_SIZE) +
             GRID_SIZE / 2;
 
-        this.glow.x = this.rectangle.x;
-        this.glow.y = this.rectangle.y;
     }
 
     applySpeedBoost(multiplier, duration) {
@@ -196,9 +181,6 @@ export class Bot {
                 Math.floor(this.baseMoveDelay * multiplier)
             );
 
-        this.rectangle.setScale(1.12);
-        this.glow.setAlpha(0.42);
-
         if (this.speedBoostTimer) {
             this.speedBoostTimer.remove(false);
         }
@@ -208,8 +190,6 @@ export class Bot {
                 duration,
                 () => {
                     this.moveDelay = this.baseMoveDelay;
-                    this.rectangle.setScale(1);
-                    this.glow.setAlpha(0.22);
                     this.speedBoostTimer = null;
                 }
             );
@@ -220,6 +200,283 @@ export class Bot {
         this.alive = false;
 
         this.rectangle.setFillStyle(0xffffff);
-        this.glow.setFillStyle(0xffffff, 0.18);
+    }
+}
+
+class EasyAI {
+
+    static getDirection(bot, gridSystem) {
+
+        const possible = [];
+
+        for (const dir of Object.values(DIRECTIONS)) {
+
+            if (
+                dir.x === -bot.direction.x &&
+                dir.y === -bot.direction.y
+            ) {
+                continue;
+            }
+
+            const nx = bot.gridX + dir.x;
+            const ny = bot.gridY + dir.y;
+
+            if (!gridSystem.isOccupied(nx, ny)) {
+                possible.push(dir);
+            }
+        }
+
+        if (possible.length === 0) {
+            return bot.direction;
+        }
+
+        return Phaser.Utils.Array.GetRandom(possible);
+    }
+}
+
+class MediumAI {
+
+    static getDirection(bot, gridSystem, arenaSystem = null) {
+
+        let bestDirection = bot.direction;
+        let bestScore = -9999;
+
+        for (const dir of Object.values(DIRECTIONS)) {
+
+            if (
+                dir.x === -bot.direction.x &&
+                dir.y === -bot.direction.y
+            ) {
+                continue;
+            }
+
+            const nx = bot.gridX + dir.x;
+            const ny = bot.gridY + dir.y;
+
+            if (
+                gridSystem.isOccupied(nx, ny) ||
+                (
+                    arenaSystem &&
+                    !arenaSystem.isInsideActiveArena(nx, ny)
+                )
+            ) {
+                continue;
+            }
+
+            const score =
+                this.calculateFreeSpace(
+                    gridSystem,
+                    nx,
+                    ny,
+                    arenaSystem
+                );
+
+            if (score > bestScore) {
+
+                bestScore = score;
+                bestDirection = dir;
+            }
+        }
+
+        return bestDirection;
+    }
+
+    static calculateFreeSpace(gridSystem, x, y, arenaSystem = null) {
+
+        let score = 0;
+
+        for (const dir of Object.values(DIRECTIONS)) {
+
+            const nx = x + dir.x;
+            const ny = y + dir.y;
+
+            if (
+                !gridSystem.isOccupied(nx, ny) &&
+                (
+                    !arenaSystem ||
+                    arenaSystem.isInsideActiveArena(nx, ny)
+                )
+            ) {
+                score++;
+            }
+        }
+
+        return score;
+    }
+}
+
+class HardAI {
+
+    static getDirection(bot, gridSystem, player, arenaSystem = null) {
+
+        let bestDirection = bot.direction;
+        let bestScore = -99999;
+
+        for (const dir of Object.values(DIRECTIONS)) {
+
+            if (
+                dir.x === -bot.direction.x &&
+                dir.y === -bot.direction.y
+            ) {
+                continue;
+            }
+
+            const nx = bot.gridX + dir.x;
+            const ny = bot.gridY + dir.y;
+
+            if (
+                gridSystem.isOccupied(nx, ny) ||
+                (
+                    arenaSystem &&
+                    !arenaSystem.isInsideActiveArena(nx, ny)
+                )
+            ) {
+                continue;
+            }
+
+            const freeSpace =
+                this.calculateFreeSpace(
+                    gridSystem,
+                    nx,
+                    ny,
+                    arenaSystem
+                );
+
+            const exits =
+                this.countImmediateExits(
+                    gridSystem,
+                    nx,
+                    ny,
+                    dir,
+                    arenaSystem
+                );
+
+            let score = freeSpace * 4;
+
+            score += exits * 18;
+
+            if (exits <= 1) {
+                score -= 45;
+            }
+
+            score -= this.distanceToPlayer(
+                nx,
+                ny,
+                player
+            ) * 3;
+
+            score += this.cutsPlayerPath(
+                nx,
+                ny,
+                player
+            );
+
+            if (score > bestScore) {
+
+                bestScore = score;
+                bestDirection = dir;
+            }
+        }
+
+        return bestDirection;
+    }
+
+    static calculateFreeSpace(gridSystem, x, y, arenaSystem = null) {
+
+        let score = 0;
+        const queue = [{ x, y }];
+        const visited = new Set([`${x},${y}`]);
+
+        while (queue.length > 0 && score < 90) {
+
+            const cell = queue.shift();
+            score++;
+
+            for (const dir of Object.values(DIRECTIONS)) {
+
+                const nx = cell.x + dir.x;
+                const ny = cell.y + dir.y;
+                const key = `${nx},${ny}`;
+
+                if (visited.has(key)) {
+                    continue;
+                }
+
+                if (
+                    gridSystem.isOccupied(nx, ny) ||
+                    (
+                        arenaSystem &&
+                        !arenaSystem.isInsideActiveArena(nx, ny)
+                    )
+                ) {
+                    continue;
+                }
+
+                visited.add(key);
+                queue.push({ x: nx, y: ny });
+            }
+        }
+
+        return score;
+    }
+
+    static countImmediateExits(
+        gridSystem,
+        x,
+        y,
+        currentDirection,
+        arenaSystem = null
+    ) {
+
+        let exits = 0;
+
+        for (const dir of Object.values(DIRECTIONS)) {
+
+            if (
+                dir.x === -currentDirection.x &&
+                dir.y === -currentDirection.y
+            ) {
+                continue;
+            }
+
+            const nx = x + dir.x;
+            const ny = y + dir.y;
+
+            if (
+                !gridSystem.isOccupied(nx, ny) &&
+                (
+                    !arenaSystem ||
+                    arenaSystem.isInsideActiveArena(nx, ny)
+                )
+            ) {
+                exits++;
+            }
+        }
+
+        return exits;
+    }
+
+    static distanceToPlayer(x, y, player) {
+
+        return (
+            Math.abs(player.gridX - x) +
+            Math.abs(player.gridY - y)
+        );
+    }
+
+    static cutsPlayerPath(x, y, player) {
+
+        const playerDistance =
+            this.distanceToPlayer(x, y, player);
+
+        if (playerDistance > 5) {
+            return 0;
+        }
+
+        const sameLane =
+            x === player.gridX ||
+            y === player.gridY;
+
+        return sameLane ? 22 : 8;
     }
 }

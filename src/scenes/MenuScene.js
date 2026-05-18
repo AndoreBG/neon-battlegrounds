@@ -8,8 +8,6 @@ export class MenuScene extends Phaser.Scene {
 
     create() {
 
-        this.cameras.main.fadeIn(300);
-
         this.add.rectangle(
             640,
             360,

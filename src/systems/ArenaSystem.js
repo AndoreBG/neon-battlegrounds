@@ -4,7 +4,8 @@ import {
     GRID_SIZE,
     ARENA_OFFSET_X,
     ARENA_OFFSET_Y,
-    COLORS
+    COLORS,
+    ARENA_TIMERS
 } from '../utils/Constants.js';
 
 export class ArenaSystem {
@@ -19,11 +20,21 @@ export class ArenaSystem {
 
         this.disabledBlocks = [];
 
-        this.nextShrinkTime = 15000;
+        this.warningActive = false;
 
-        this.shrinkInterval = 10000;
+        this.warningEndTime = 0;
 
-        this.warningDuration = 3000;
+        this.nextShrinkTime =
+            ARENA_TIMERS.INITIAL_SHRINK_DELAY;
+
+        this.shrinkInterval =
+            ARENA_TIMERS.SHRINK_INTERVAL;
+
+        this.warningDuration =
+            ARENA_TIMERS.WARNING_DURATION;
+
+        this.warningBlinkDuration =
+            ARENA_TIMERS.WARNING_BLINK_DURATION;
 
         this.currentBounds = {
             left: 0,
@@ -35,25 +46,31 @@ export class ArenaSystem {
 
     update(elapsedTime) {
 
+        if (this.warningActive) {
+            return;
+        }
+
         if (
             elapsedTime >= this.nextShrinkTime
         ) {
 
-            this.startWarning();
-
-            this.nextShrinkTime +=
-                this.shrinkInterval;
+            this.startWarning(elapsedTime);
         }
     }
 
-    startWarning() {
+    startWarning(elapsedTime) {
 
         if (
             this.currentBounds.right - this.currentBounds.left <= 6 ||
             this.currentBounds.bottom - this.currentBounds.top <= 6
         ) {
+            this.nextShrinkTime = Number.POSITIVE_INFINITY;
             return;
         }
+
+        this.warningActive = true;
+        this.warningEndTime =
+            elapsedTime + this.warningDuration;
 
         const nextBounds = {
             left: this.currentBounds.left + 1,
@@ -71,6 +88,10 @@ export class ArenaSystem {
                 this.disableBlocks(nextBounds);
 
                 this.currentBounds = nextBounds;
+                this.warningActive = false;
+                this.nextShrinkTime =
+                    this.warningEndTime +
+                    this.shrinkInterval;
             }
         );
     }
@@ -119,7 +140,7 @@ export class ArenaSystem {
                 this.scene.tweens.add({
                     targets: block,
                     alpha: 0.2,
-                    duration: 400,
+                    duration: this.warningBlinkDuration,
                     yoyo: true,
                     repeat: -1
                 });
@@ -204,6 +225,16 @@ export class ArenaSystem {
     }
 
     getRemainingTime(elapsedTime) {
+
+        if (this.warningActive) {
+
+            const warningRemaining =
+                Math.ceil(
+                    (this.warningEndTime - elapsedTime) / 1000
+                );
+
+            return Math.max(0, warningRemaining);
+        }
 
         const remaining =
             Math.ceil(

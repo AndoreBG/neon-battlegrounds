@@ -8,10 +8,18 @@ export class GameOverScene extends Phaser.Scene {
 
     create() {
 
+        const playerWon =
+            gameManager.hasPlayerWon();
+
         const victoryText =
-            gameManager.hasPlayerWon()
-                ? 'VOCÊ VENCEU'
+            playerWon
+                ? 'VOCE VENCEU'
                 : 'GAME OVER';
+
+        const retryLabel =
+            playerWon
+                ? 'SELECIONAR DIFICULDADE'
+                : 'TENTAR NOVAMENTE';
 
         this.add.text(
             640,
@@ -27,7 +35,7 @@ export class GameOverScene extends Phaser.Scene {
         const retryButton = this.add.text(
             640,
             380,
-            'TENTAR NOVAMENTE',
+            retryLabel,
             {
                 fontSize: '30px',
                 color: '#00ffff',
@@ -42,6 +50,12 @@ export class GameOverScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
         retryButton.on('pointerdown', () => {
+
+            if (playerWon) {
+                this.scene.start('DifficultyScene');
+                return;
+            }
+
             this.scene.start('GameScene');
         });
 

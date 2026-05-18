@@ -9,8 +9,6 @@ export class DifficultyScene extends Phaser.Scene {
 
     create() {
 
-        this.cameras.main.fadeIn(300);
-
         this.add.text(
             640,
             140,
@@ -25,7 +23,7 @@ export class DifficultyScene extends Phaser.Scene {
         this.createDifficultyButton(
             640,
             260,
-            'FÁCIL',
+            'FACIL',
             '#00ff66',
             DIFFICULTY.FACIL
         );
@@ -33,7 +31,7 @@ export class DifficultyScene extends Phaser.Scene {
         this.createDifficultyButton(
             640,
             380,
-            'MÉDIO',
+            'MEDIO',
             '#ffcc00',
             DIFFICULTY.MEDIO
         );
@@ -41,7 +39,7 @@ export class DifficultyScene extends Phaser.Scene {
         this.createDifficultyButton(
             640,
             500,
-            'DIFÍCIL',
+            'DIFICIL',
             '#ff3355',
             DIFFICULTY.DIFICIL
         );
