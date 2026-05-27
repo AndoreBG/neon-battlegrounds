@@ -65,7 +65,7 @@ export class MenuScene extends Phaser.Scene {
         this.add.text(
             640,
             650,
-            'TRON Arcade Survival',
+            'Desenvolvido por Mika Games',
             {
                 fontSize: '18px',
                 color: '#666666'
