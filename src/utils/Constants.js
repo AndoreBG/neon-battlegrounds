@@ -14,7 +14,7 @@ export const ARENA_OFFSET_Y =
 
 export const MOVE_DELAY = 120;
 
-export const DEGUB = false;
+export const DEGUB = true;
 
 export const ARENA_TIMERS = {
     INITIAL_SHRINK_DELAY: 5000,

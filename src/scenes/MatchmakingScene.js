@@ -95,14 +95,17 @@ export class MatchmakingScene extends Phaser.Scene {
     });
 
     networkManager.on('room:joined', () => {
-      console.log('[MatchmakingScene] room:joined received');
       gameManager.setMultiplayer(true);
-      console.log('[MatchmakingScene] setMultiplayer(true), starting GameScene');
-      this.scene.start('GameScene');
+      // não inicia GameScene ainda
     });
 
     networkManager.on('room:joinFailed', (data) => {
       this.statusText.setText(`Erro: ${data.reason}`);
+    });
+
+    networkManager.on('game:start', (data) => {
+      gameManager.setMultiplayerData(data);  // armazena player1/player2
+      this.scene.start('GameScene');
     });
   }
 
@@ -110,6 +113,7 @@ export class MatchmakingScene extends Phaser.Scene {
     this.createButton.setActive(false);
     this.joinButton.setActive(false);
     this.statusText.setText('Criando sala...');
+    gameManager.setMultiplayerData({ role: 'host' });
     networkManager.send('room:create', {});
   }
 
@@ -147,6 +151,8 @@ export class MatchmakingScene extends Phaser.Scene {
 
     this.codeInput = '';
 
+    gameManager.setMultiplayerData({ role: 'guest' });
+    
     this.inputText = this.add.text(640, 320, 'INSIRA O CÓDIGO:', {
       fontFamily: 'Arial',
       fontSize: '28px',

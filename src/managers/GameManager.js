@@ -7,6 +7,7 @@ class GameManager {
         this.difficulty = null;
         this.playerWon = false;
         this.isMultiplayer = false;
+        this.multiplayerData = null;
     }
 
     setDifficulty(difficulty) {
@@ -31,6 +32,14 @@ class GameManager {
 
     getMultiplayer() {
         return this.isMultiplayer;
+    }
+    
+    setMultiplayerData(data) {
+        this.multiplayerData = data;
+    }
+    
+    getMultiplayerData() {
+        return this.multiplayerData;
     }
 }
 

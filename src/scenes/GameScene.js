@@ -82,12 +82,25 @@ export class GameScene extends Phaser.Scene {
     }
 
     createEntities() {
-
         const isMultiplayer = gameManager.getMultiplayer();
-        console.log('[GameScene] isMultiplayer:', isMultiplayer);
+        const mpData = gameManager.getMultiplayerData();
 
-        // Force initialize remotePlayer flag
-        this.remotePlayer = null;
+        console.log('[GameScene] isMultiplayer:', isMultiplayer);
+        console.log('[GameScene] mpData:', mpData);
+
+        // Define posições iniciais diferentes para host e guest
+        let playerStart = { x: 1, y: GRID_ROWS - 2 };
+        let remoteStart = { x: GRID_COLS - 2, y: 1 };
+
+        if (isMultiplayer && mpData) {
+            const isHost = mpData.role === 'host';
+            playerStart = isHost
+                ? { x: 1, y: GRID_ROWS - 2 }
+                : { x: GRID_COLS - 2, y: 1 };
+            remoteStart = isHost
+                ? { x: GRID_COLS - 2, y: 1 }
+                : { x: 1, y: GRID_ROWS - 2 };
+        }
 
         const difficulty = gameManager.getDifficulty() || DIFFICULTY.FACIL;
         const botColor = this.getBotColor(difficulty);
@@ -95,19 +108,20 @@ export class GameScene extends Phaser.Scene {
         this.player = new Player(
             this,
             this.gridSystem,
-            1,
-            GRID_ROWS - 2,
+            playerStart.x,
+            playerStart.y,
             COLORS.PLAYER
         );
 
+        this.remotePlayer = null;
         this.bots = [];
 
         if (isMultiplayer) {
             this.remotePlayer = new RemotePlayer(
                 this,
                 this.gridSystem,
-                GRID_COLS - 2,
-                1,
+                remoteStart.x,
+                remoteStart.y,
                 COLORS.HARD
             );
         } else {

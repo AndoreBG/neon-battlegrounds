@@ -72,8 +72,10 @@ io.on('connection', (socket) => {
     if (room1Socket) room1Socket.emit('room:joined', { opponentId: socket.id });
     socket.emit('room:joined', { opponentId: room.player1 });
 
-    io.to(code).emit('game:start');
-    console.log(`[ROOM] ${code} full: ${room.player1} vs ${socket.id}`);
+    io.to(code).emit('game:start', {
+      player1: room.player1,
+      player2: room.player2
+    });
   });
 
   socket.on('player:move', (data) => {
