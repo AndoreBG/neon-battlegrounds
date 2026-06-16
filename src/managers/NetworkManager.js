@@ -43,6 +43,17 @@ class NetworkManager {
         this.socket?.on?.(event, callback);
     }
 
+    off(event, callback) {
+        if (this.listeners.has(event)) {
+            const callbacks = this.listeners.get(event);
+            const index = callbacks.indexOf(callback);
+            if (index > -1) {
+                callbacks.splice(index, 1);
+            }
+        }
+        this.socket?.off?.(event, callback);
+    }
+
     flushPendingEvents() {
         if (!this.connected || !this.socket?.emit) {
             return;

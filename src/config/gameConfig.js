@@ -1,6 +1,7 @@
 import { BootScene } from '../scenes/BootScene.js';
 import { MenuScene } from '../scenes/MenuScene.js';
 import { DifficultyScene } from '../scenes/DifficultyScene.js';
+import { MatchmakingScene } from '../scenes/MatchmakingScene.js';
 import { GameScene } from '../scenes/GameScene.js';
 import { GameOverScene } from '../scenes/GameOverScene.js';
 
@@ -25,6 +26,7 @@ export const gameConfig = {
         BootScene,
         MenuScene,
         DifficultyScene,
+        MatchmakingScene,
         GameScene,
         GameOverScene
     ]

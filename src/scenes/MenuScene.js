@@ -1,4 +1,5 @@
 import { COLORS } from '../utils/Constants.js';
+import { gameManager } from '../managers/GameManager.js';
 
 export class MenuScene extends Phaser.Scene {
 
@@ -7,6 +8,8 @@ export class MenuScene extends Phaser.Scene {
     }
 
     create() {
+
+        gameManager.reset();
 
         this.add.rectangle(
             640,
@@ -60,6 +63,40 @@ export class MenuScene extends Phaser.Scene {
 
         playButton.on('pointerdown', () => {
             this.scene.start('DifficultyScene');
+        });
+
+        const pvpButton = this.add.text(
+            640,
+            450,
+            'PvP MULTIPLAYER',
+            {
+                fontFamily: 'Arial',
+                fontSize: '32px',
+                color: '#ffffff',
+                backgroundColor: '#111827',
+                padding: {
+                    x: 24,
+                    y: 12
+                }
+            }
+        )
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+
+        pvpButton.on('pointerover', () => {
+            pvpButton.setStyle({
+                color: '#00ffff'
+            });
+        });
+
+        pvpButton.on('pointerout', () => {
+            pvpButton.setStyle({
+                color: '#ffffff'
+            });
+        });
+
+        pvpButton.on('pointerdown', () => {
+            this.scene.start('MatchmakingScene');
         });
 
         this.add.text(

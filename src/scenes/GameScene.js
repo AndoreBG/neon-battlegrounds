@@ -18,6 +18,7 @@ import { PowerUpSystem } from '../systems/PowerUpSystem.js';
 
 import { Player } from '../entities/Player.js';
 import { Bot } from '../entities/Bot.js';
+import { RemotePlayer } from '../entities/RemotePlayer.js';
 
 import { audioManager } from '../managers/AudioManager.js';
 import { networkManager } from '../managers/NetworkManager.js';
@@ -55,6 +56,10 @@ export class GameScene extends Phaser.Scene {
 
         this.createHUD();
 
+        if (gameManager.getMultiplayer()) {
+            this.setupMultiplayerListeners();
+        }
+
         audioManager.playMusic('match');
         networkManager.send('match:start', {
             difficulty: gameManager.getDifficulty()
@@ -66,16 +71,26 @@ export class GameScene extends Phaser.Scene {
                 this.scene.start('MenuScene');
             }
         );
+
+        this.events.on('shutdown', () => {
+            this.cleanupMultiplayerListeners?.();
+        });
+
+        this.events.on('sleep', () => {
+            this.cleanupMultiplayerListeners?.();
+        });
     }
 
     createEntities() {
 
-        const difficulty =
-            gameManager.getDifficulty() ||
-            DIFFICULTY.FACIL;
+        const isMultiplayer = gameManager.getMultiplayer();
+        console.log('[GameScene] isMultiplayer:', isMultiplayer);
 
-        const botColor =
-            this.getBotColor(difficulty);
+        // Force initialize remotePlayer flag
+        this.remotePlayer = null;
+
+        const difficulty = gameManager.getDifficulty() || DIFFICULTY.FACIL;
+        const botColor = this.getBotColor(difficulty);
 
         this.player = new Player(
             this,
@@ -87,41 +102,51 @@ export class GameScene extends Phaser.Scene {
 
         this.bots = [];
 
-        this.bots.push(
-            new Bot(
+        if (isMultiplayer) {
+            this.remotePlayer = new RemotePlayer(
                 this,
                 this.gridSystem,
                 GRID_COLS - 2,
                 1,
-                botColor,
-                difficulty,
-                this.player
-            )
-        );
+                COLORS.HARD
+            );
+        } else {
+            this.bots.push(
+                new Bot(
+                    this,
+                    this.gridSystem,
+                    GRID_COLS - 2,
+                    1,
+                    botColor,
+                    difficulty,
+                    this.player
+                )
+            );
 
-        this.bots.push(
-            new Bot(
-                this,
-                this.gridSystem,
-                GRID_COLS - 2,
-                GRID_ROWS - 2,
-                botColor,
-                difficulty,
-                this.player
-            )
-        );
+            this.bots.push(
+                new Bot(
+                    this,
+                    this.gridSystem,
+                    GRID_COLS - 2,
+                    GRID_ROWS - 2,
+                    botColor,
+                    difficulty,
+                    this.player
+                )
+            );
 
-        this.bots.push(
-            new Bot(
-                this,
-                this.gridSystem,
-                Math.floor(GRID_COLS / 2),
-                1,
-                botColor,
-                difficulty,
-                this.player
-            )
-        );
+            this.bots.push(
+                new Bot(
+                    this,
+                    this.gridSystem,
+                    Math.floor(GRID_COLS / 2),
+                    1,
+                    botColor,
+                    difficulty,
+                    this.player
+                )
+            );
+        }
     }
 
     getBotColor(difficulty) {
@@ -257,6 +282,8 @@ export class GameScene extends Phaser.Scene {
 
         this.checkVictory();
 
+        this.sendPlayerPosition();
+
         this.updateHUD(this.matchElapsedTime);
     }
 
@@ -266,9 +293,12 @@ export class GameScene extends Phaser.Scene {
             this.player
         );
 
-        for (const bot of this.bots) {
-
-            this.checkEntityCollision(bot);
+        if (this.remotePlayer) {
+            this.checkEntityCollision(this.remotePlayer);
+        } else {
+            for (const bot of this.bots) {
+                this.checkEntityCollision(bot);
+            }
         }
     }
 
@@ -300,10 +330,12 @@ export class GameScene extends Phaser.Scene {
 
     checkArenaDeaths() {
 
-        const entities = [
-            this.player,
-            ...this.bots
-        ];
+        const entities = [this.player];
+        if (this.remotePlayer) {
+            entities.push(this.remotePlayer);
+        } else {
+            entities.push(...this.bots);
+        }
 
         for (const entity of entities) {
 
@@ -329,21 +361,68 @@ export class GameScene extends Phaser.Scene {
     checkVictory() {
 
         if (!this.player.alive) {
-
             this.finishGame(false);
-
             return;
         }
 
-        const aliveBots =
-            this.bots.filter(
-                bot => bot.alive
-            );
-
-        if (aliveBots.length === 0) {
-
-            this.finishGame(true);
+        if (this.remotePlayer) {
+            if (!this.remotePlayer.alive) {
+                this.finishGame(true);
+            }
+        } else {
+            const aliveBots = this.bots.filter(bot => bot.alive);
+            if (aliveBots.length === 0) {
+                this.finishGame(true);
+            }
         }
+    }
+
+    setupMultiplayerListeners() {
+        this.opponentMoveHandler = (data) => {
+            if (this.remotePlayer && data) {
+                this.remotePlayer.updatePosition(data.x, data.y, data.direction);
+            }
+        };
+
+        this.opponentDisconnectHandler = () => {
+            if (!this.gameEnded) {
+                this.finishGame(true);
+            }
+        };
+
+        this.gameOverHandler = (data) => {
+            if (!this.gameEnded) {
+                this.finishGame(false);
+            }
+        };
+
+        networkManager.on('opponent:move', this.opponentMoveHandler);
+        networkManager.on('opponent:disconnected', this.opponentDisconnectHandler);
+        networkManager.on('game:over', this.gameOverHandler);
+    }
+
+    cleanupMultiplayerListeners() {
+        if (this.opponentMoveHandler) {
+            networkManager.off('opponent:move', this.opponentMoveHandler);
+        }
+        if (this.opponentDisconnectHandler) {
+            networkManager.off('opponent:disconnected', this.opponentDisconnectHandler);
+        }
+        if (this.gameOverHandler) {
+            networkManager.off('game:over', this.gameOverHandler);
+        }
+    }
+
+    sendPlayerPosition() {
+        if (!gameManager.getMultiplayer() || !this.player.alive) {
+            return;
+        }
+
+        networkManager.send('player:move', {
+            x: this.player.gridX,
+            y: this.player.gridY,
+            direction: this.player.direction
+        });
     }
 
     finishGame(playerWon) {
@@ -353,6 +432,10 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.gameEnded = true;
+
+        if (gameManager.getMultiplayer() && !playerWon) {
+            networkManager.send('player:death', {});
+        }
 
         gameManager.setWinner(playerWon);
         audioManager.stopMusic();
