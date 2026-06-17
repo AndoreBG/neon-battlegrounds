@@ -45,6 +45,17 @@ export class RemotePlayer {
             this.die();
         }
 
+        // Efeito visual de boost de velocidade (borda branca quando ativo)
+        if (this.alive) {
+            if (state.boost && !this._boostShown) {
+                this.rectangle.setStrokeStyle(2, 0xffffff, 1);
+                this._boostShown = true;
+            } else if (!state.boost && this._boostShown) {
+                this.rectangle.setStrokeStyle();
+                this._boostShown = false;
+            }
+        }
+
         const newX = state.x;
         const newY = state.y;
 

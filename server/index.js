@@ -34,7 +34,11 @@ app.get('*', (req, res, next) => {
  * ============================================================ */
 const GRID_COLS = 40;
 const GRID_ROWS = 40;
-const MOVE_DELAY = 120; // ms por passo
+const MOVE_DELAY = 120; // ms por passo (velocidade normal)
+
+// Resolução do loop. O servidor "tica" rápido e cada jogador anda quando
+// o seu acumulador atinge o próprio moveDelay (permite velocidades distintas).
+const TICK_MS = 20;
 
 const DIRECTIONS = {
   UP: { x: 0, y: -1 },
@@ -48,6 +52,17 @@ const ARENA_TIMERS = {
   SHRINK_INTERVAL: 3000,
   WARNING_DURATION: 3000
 };
+
+// Espelha src/utils/Constants.js -> POWER_UP
+const POWER_UP = {
+  SPAWN_DELAY: 4000,
+  RESPAWN_DELAY: 7000,
+  SPEED_MULTIPLIER: 1 / 1.4,
+  DURATION: 5000
+};
+
+// Velocidade (moveDelay) com boost, mesma fórmula do Player.applySpeedBoost
+const BOOST_MOVE_DELAY = Math.max(40, Math.floor(MOVE_DELAY * POWER_UP.SPEED_MULTIPLIER));
 
 const rooms = {};
 // Índice rápido socketId -> roomCode
@@ -103,6 +118,10 @@ function startMatch(room) {
       pendingBounds: null,
       warningEndTime: 0
     },
+    powerUp: {
+      active: null,                       // { x, y } enquanto houver power-up no mapa
+      nextSpawnTime: POWER_UP.SPAWN_DELAY // quando tentar (re)spawnar
+    },
     players: {
       [room.player1]: {
         id: room.player1,
@@ -111,7 +130,10 @@ function startMatch(room) {
         y: GRID_ROWS - 2,
         direction: DIRECTIONS.RIGHT,
         nextDirection: DIRECTIONS.RIGHT,
-        alive: true
+        alive: true,
+        moveDelay: MOVE_DELAY, // velocidade atual (ms por passo)
+        moveAcc: 0,            // acumulador de tempo desde o último passo
+        boostUntil: 0          // timestamp (match.elapsed) em que o boost expira
       },
       [room.player2]: {
         id: room.player2,
@@ -120,15 +142,19 @@ function startMatch(room) {
         y: 1,
         direction: DIRECTIONS.LEFT,
         nextDirection: DIRECTIONS.LEFT,
-        alive: true
+        alive: true,
+        moveDelay: MOVE_DELAY,
+        moveAcc: 0,
+        boostUntil: 0
       }
     }
   };
 
   room.gameState = 'playing';
 
-  // Loop de jogo independente do foco de qualquer cliente
-  room.loop = setInterval(() => tickRoom(room), MOVE_DELAY);
+  // Loop de jogo independente do foco de qualquer cliente.
+  // Roda a TICK_MS; cada jogador anda quando seu acumulador atinge moveDelay.
+  room.loop = setInterval(() => tickRoom(room), TICK_MS);
 }
 
 function stopMatch(room) {
@@ -178,6 +204,67 @@ function isInsideActiveArena(match, x, y) {
 }
 
 /* ------------------------------------------------------------
+ *  Power-up (autoritativo) — mesmas regras do singleplayer
+ * ---------------------------------------------------------- */
+function trySpawnPowerUp(room) {
+  const match = room.match;
+  const pu = match.powerUp;
+
+  if (pu.active || match.elapsed < pu.nextSpawnTime) {
+    return;
+  }
+
+  const players = Object.values(match.players);
+  const freeCells = [];
+
+  for (let x = 0; x < GRID_COLS; x++) {
+    for (let y = 0; y < GRID_ROWS; y++) {
+      if (room.grid[y][x] !== null) continue;            // rastro ocupa
+      if (!isInsideActiveArena(match, x, y)) continue;    // fora da arena ativa
+      const onPlayer = players.some(p => p.alive && p.x === x && p.y === y);
+      if (onPlayer) continue;
+      freeCells.push({ x, y });
+    }
+  }
+
+  if (freeCells.length === 0) {
+    pu.nextSpawnTime = match.elapsed + POWER_UP.RESPAWN_DELAY;
+    return;
+  }
+
+  const cell = freeCells[Math.floor(Math.random() * freeCells.length)];
+  pu.active = { x: cell.x, y: cell.y };
+}
+
+function applyBoost(player, match) {
+  player.moveDelay = BOOST_MOVE_DELAY;
+  player.boostUntil = match.elapsed + POWER_UP.DURATION;
+}
+
+function expireBoosts(match) {
+  for (const p of Object.values(match.players)) {
+    if (p.boostUntil && match.elapsed >= p.boostUntil) {
+      p.moveDelay = MOVE_DELAY;
+      p.boostUntil = 0;
+    }
+  }
+}
+
+// Verifica coleta para um jogador específico (após ele se mover)
+function checkPowerUpCollect(room, player) {
+  const pu = room.match.powerUp;
+  if (!pu.active || !player.alive) return;
+
+  if (player.x === pu.active.x && player.y === pu.active.y) {
+    applyBoost(player, room.match);
+    pu.active = null;
+    pu.nextSpawnTime = room.match.elapsed + POWER_UP.RESPAWN_DELAY;
+    // avisa os clientes para tocar SFX
+    io.to(room.code).emit('powerup:collected', { playerId: player.id });
+  }
+}
+
+/* ------------------------------------------------------------
  *  Tick principal
  * ---------------------------------------------------------- */
 function tickRoom(room) {
@@ -186,14 +273,25 @@ function tickRoom(room) {
     return;
   }
 
-  match.elapsed += MOVE_DELAY;
+  // Avança o tempo de simulação por um tick
+  match.elapsed += TICK_MS;
+
   updateArena(match);
+  expireBoosts(match);
+  trySpawnPowerUp(room);
 
   const players = Object.values(match.players);
 
-  // 1) Aplica direção e marca rastro na posição atual, depois move
+  // 1) Move cada jogador conforme seu próprio acumulador (velocidade individual)
+  const movedThisTick = [];
   for (const p of players) {
     if (!p.alive) continue;
+
+    p.moveAcc += TICK_MS;
+    if (p.moveAcc < p.moveDelay) {
+      continue; // ainda não é hora desse jogador andar
+    }
+    p.moveAcc -= p.moveDelay;
 
     // adota a próxima direção se não for reversão
     if (p.nextDirection && !isOpposite(p.nextDirection, p.direction)) {
@@ -208,30 +306,41 @@ function tickRoom(room) {
     // move
     p.x += p.direction.x;
     p.y += p.direction.y;
+
+    movedThisTick.push(p);
   }
 
-  // 2) Detecta colisões (rastro/parede/arena) e colisão de cabeças
-  const headMap = {};
-  for (const p of players) {
-    if (!p.alive) continue;
-    const key = `${p.x},${p.y}`;
-    headMap[key] = headMap[key] ? [...headMap[key], p] : [p];
-  }
+  // Se ninguém andou neste tick, ainda assim transmitimos estado de tempos em
+  // tempos não é necessário; mas mandamos sempre para manter clientes em sync.
+  if (movedThisTick.length > 0) {
+    // 2) Colisão de cabeças apenas entre quem andou e está na mesma célula
+    const headMap = {};
+    for (const p of players) {
+      if (!p.alive) continue;
+      const key = `${p.x},${p.y}`;
+      headMap[key] = headMap[key] ? [...headMap[key], p] : [p];
+    }
 
-  for (const p of players) {
-    if (!p.alive) continue;
+    for (const p of movedThisTick) {
+      if (!p.alive) continue;
 
-    const outOfBounds = !isInside(p.x, p.y);
-    const hitTrail = !outOfBounds && room.grid[p.y][p.x] !== null;
-    const outOfArena = !isInsideActiveArena(match, p.x, p.y);
-    const headOn = (headMap[`${p.x},${p.y}`] || []).length > 1;
+      const outOfBounds = !isInside(p.x, p.y);
+      const hitTrail = !outOfBounds && room.grid[p.y][p.x] !== null;
+      const outOfArena = !isInsideActiveArena(match, p.x, p.y);
+      const headOn = (headMap[`${p.x},${p.y}`] || []).length > 1;
 
-    if (outOfBounds || hitTrail || outOfArena || headOn) {
-      p.alive = false;
+      if (outOfBounds || hitTrail || outOfArena || headOn) {
+        p.alive = false;
+      }
+    }
+
+    // 3) Coleta de power-up (só faz sentido para quem moveu)
+    for (const p of movedThisTick) {
+      checkPowerUpCollect(room, p);
     }
   }
 
-  // 3) Monta snapshot e transmite
+  // 4) Monta snapshot e transmite
   const snapshot = {
     elapsed: match.elapsed,
     arena: {
@@ -239,19 +348,23 @@ function tickRoom(room) {
       warningActive: match.arena.warningActive,
       pendingBounds: match.arena.pendingBounds
     },
+    powerUp: match.powerUp.active
+      ? { x: match.powerUp.active.x, y: match.powerUp.active.y }
+      : null,
     players: players.map(p => ({
       id: p.id,
       role: p.role,
       x: p.x,
       y: p.y,
       direction: p.direction,
-      alive: p.alive
+      alive: p.alive,
+      boost: p.boostUntil > match.elapsed
     }))
   };
 
   io.to(room.code).emit('state:update', snapshot);
 
-  // 4) Condição de fim de jogo
+  // 5) Condição de fim de jogo
   const alive = players.filter(p => p.alive);
   if (alive.length <= 1) {
     room.gameState = 'ended';

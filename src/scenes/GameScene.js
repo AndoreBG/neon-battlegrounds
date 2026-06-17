@@ -91,6 +91,7 @@ export class GameScene extends Phaser.Scene {
         this.localRenderPlayer = null; // nosso próprio boneco renderizado pelo servidor
         this.bots = [];
         this.player = null;           // Player simulado (apenas singleplayer)
+        this.powerUpSprite = null;    // sprite do power-up (apenas modo online)
 
         if (this.isMultiplayer && mpData) {
             const isHost = mpData.role === 'host';
@@ -366,9 +367,14 @@ export class GameScene extends Phaser.Scene {
             }
         };
 
+        this.powerUpCollectedHandler = () => {
+            audioManager.playSFX('powerup-speed');
+        };
+
         networkManager.on('state:update', this.stateUpdateHandler);
         networkManager.on('match:over', this.matchOverHandler);
         networkManager.on('opponent:disconnected', this.opponentDisconnectHandler);
+        networkManager.on('powerup:collected', this.powerUpCollectedHandler);
     }
 
     applyServerSnapshot(snapshot) {
@@ -378,6 +384,9 @@ export class GameScene extends Phaser.Scene {
         if (snapshot.arena) {
             this.arenaSystem.applyServerState(snapshot.arena);
         }
+
+        // Renderiza o power-up vindo do servidor
+        this.renderPowerUp(snapshot.powerUp);
 
         const mpData = gameManager.getMultiplayerData() || {};
         const myId = mpData.selfId;
@@ -394,6 +403,31 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    renderPowerUp(powerUp) {
+        if (!powerUp) {
+            // sem power-up no mapa: remove o sprite se existir
+            if (this.powerUpSprite) {
+                this.powerUpSprite.destroy();
+                this.powerUpSprite = null;
+            }
+            return;
+        }
+
+        const px = ARENA_OFFSET_X + (powerUp.x * GRID_SIZE) + GRID_SIZE / 2;
+        const py = ARENA_OFFSET_Y + (powerUp.y * GRID_SIZE) + GRID_SIZE / 2;
+
+        if (!this.powerUpSprite) {
+            this.powerUpSprite = this.add.rectangle(
+                px, py,
+                GRID_SIZE - 6, GRID_SIZE - 6,
+                COLORS.POWER_UP
+            );
+            this.powerUpSprite.setStrokeStyle(2, 0xffffff, 0.9);
+        } else {
+            this.powerUpSprite.setPosition(px, py);
+        }
+    }
+
     cleanupMultiplayerListeners() {
         if (this.stateUpdateHandler) {
             networkManager.off('state:update', this.stateUpdateHandler);
@@ -403,6 +437,9 @@ export class GameScene extends Phaser.Scene {
         }
         if (this.opponentDisconnectHandler) {
             networkManager.off('opponent:disconnected', this.opponentDisconnectHandler);
+        }
+        if (this.powerUpCollectedHandler) {
+            networkManager.off('powerup:collected', this.powerUpCollectedHandler);
         }
     }
 
