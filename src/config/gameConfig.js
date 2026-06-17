@@ -15,6 +15,14 @@ export const gameConfig = {
 
     backgroundColor: '#05070d',
 
+    // Mantém o loop usando setTimeout além do requestAnimationFrame.
+    // Reduz o "congelamento" do loop quando a janela perde o foco
+    // (defesa extra; no modo online a verdade está no servidor).
+    fps: {
+        target: 60,
+        forceSetTimeOut: true
+    },
+
     physics: {
         default: 'arcade',
         arcade: {

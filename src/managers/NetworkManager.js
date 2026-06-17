@@ -19,6 +19,10 @@ class NetworkManager {
         this.flushPendingEvents();
     }
 
+    getSocketId() {
+        return this.socket?.id || null;
+    }
+
     disconnect() {
         this.socket?.disconnect?.();
         this.socket = null;

@@ -205,6 +205,46 @@ export class ArenaSystem {
         this.warningBlocks = [];
     }
 
+    /**
+     * Modo online: aplica o estado de arena autoritativo do servidor.
+     * Não usa timers locais; apenas reflete bounds e blocos de aviso/desabilitados.
+     */
+    applyServerState(arenaState) {
+
+        if (!arenaState || !arenaState.bounds) {
+            return;
+        }
+
+        const nextBounds = arenaState.bounds;
+
+        // Aviso (blocos piscando) com base no pendingBounds enviado pelo servidor
+        if (arenaState.warningActive && arenaState.pendingBounds) {
+            if (!this._serverWarningShown) {
+                this.createWarningBlocks(arenaState.pendingBounds);
+                this._serverWarningShown = true;
+            }
+        } else {
+            this._serverWarningShown = false;
+        }
+
+        // Se os limites mudaram, materializa os blocos desabilitados
+        const changed =
+            !this._lastBounds ||
+            this._lastBounds.left !== nextBounds.left ||
+            this._lastBounds.right !== nextBounds.right ||
+            this._lastBounds.top !== nextBounds.top ||
+            this._lastBounds.bottom !== nextBounds.bottom;
+
+        if (changed && this._lastBounds) {
+            // os blocos a desabilitar são a "casca" entre o limite antigo e o novo
+            this.currentBounds = this._lastBounds;
+            this.disableBlocks(nextBounds);
+        }
+
+        this.currentBounds = nextBounds;
+        this._lastBounds = { ...nextBounds };
+    }
+
     isInsideActiveArena(x, y) {
 
         return this.isInsideBounds(
