@@ -10,7 +10,7 @@
  *
  */
 
-const PROD_SERVER_URL = 'https://SEU-SERVIDOR.onrender.com';
+const PROD_SERVER_URL = 'https://neon-battlegrounds.onrender.com/';
 
 // Detecta se estamos rodando localmente
 const isLocalhost =
