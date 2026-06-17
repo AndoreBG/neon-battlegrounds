@@ -7,12 +7,54 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = 3000;
+// Hosts como Render/Railway/Fly definem a porta via variável de ambiente.
+// Em desenvolvimento, cai no 3000.
+const PORT = process.env.PORT || 3000;
 const app = express();
 const httpServer = createServer(app);
+
+/* ------------------------------------------------------------
+ *  CORS — quais origens podem se conectar ao servidor.
+ *
+ *  - O domínio do GitHub Pages do projeto.
+ *  - localhost / 127.0.0.1 (qualquer porta) para desenvolvimento.
+ *  - Origens extras opcionais via variável de ambiente ALLOWED_ORIGINS
+ *    (separe por vírgula), sem precisar editar o código.
+ * ---------------------------------------------------------- */
+const STATIC_ALLOWED_ORIGINS = [
+  'https://andorebg.github.io'
+];
+
+const ENV_ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+const ALLOWED_ORIGINS = [...STATIC_ALLOWED_ORIGINS, ...ENV_ALLOWED_ORIGINS];
+
+function isOriginAllowed(origin) {
+  // Requisições sem Origin (ex: curl, apps nativos, same-origin) são liberadas.
+  if (!origin) return true;
+
+  // Desenvolvimento local em qualquer porta.
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return true;
+  }
+
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
+const corsOrigin = (origin, callback) => {
+  if (isOriginAllowed(origin)) {
+    callback(null, true);
+  } else {
+    callback(new Error(`Origin não permitida pelo CORS: ${origin}`));
+  }
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: corsOrigin,
     methods: ['GET', 'POST']
   }
 });
