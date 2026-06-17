@@ -99,6 +99,30 @@ export class MenuScene extends Phaser.Scene {
             this.scene.start('MatchmakingScene');
         });
 
+        // ----- Controles do jogo -----
+        this.add.text(
+            640,
+            545,
+            'CONTROLES',
+            {
+                fontFamily: 'Arial',
+                fontSize: '22px',
+                color: '#00ffff',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5);
+
+        this.add.text(
+            640,
+            585,
+            'WASD  ou  \u2190 \u2191 \u2192 \u2193',
+            {
+                fontFamily: 'Arial',
+                fontSize: '26px',
+                color: '#ffffff'
+            }
+        ).setOrigin(0.5);
+
         this.add.text(
             640,
             650,
