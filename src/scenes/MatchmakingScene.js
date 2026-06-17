@@ -104,7 +104,8 @@ export class MatchmakingScene extends Phaser.Scene {
     });
 
     networkManager.on('game:start', (data) => {
-      gameManager.setMultiplayerData(data);  // armazena player1/player2
+      const currentData = gameManager.getMultiplayerData() || {};
+      gameManager.setMultiplayerData({ ...currentData, ...data });
       this.scene.start('GameScene');
     });
   }

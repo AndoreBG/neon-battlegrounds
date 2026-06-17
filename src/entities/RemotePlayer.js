@@ -31,23 +31,23 @@ export class RemotePlayer {
     }
 
     updatePosition(newX, newY, direction) {
-        if (!this.alive) return;
-        if (this.gridX === newX && this.gridY === newY) return;
+      if (!this.alive) return;
+      if (this.gridX === newX && this.gridY === newY) return;
 
-        // 1. Deixa trilha na posição ANTERIOR
-        this.gridSystem.occupy(this.gridX, this.gridY);
-        const trail = new Trail(this.scene, this.gridSystem, this.gridX, this.gridY, this.color);
-        this.trails.push(trail);
+      // Deixa trilha na posição ANTERIOR
+      this.gridSystem.occupy(this.gridX, this.gridY);
+      const trail = new Trail(this.scene, this.gridX, this.gridY, this.color); // <-- corrigido
+      this.trails.push(trail);
 
-        // 2. Move para a nova posição
-        this.gridX = newX;
-        this.gridY = newY;
-        this.direction = direction;
+      // Move para a nova posição
+      this.gridX = newX;
+      this.gridY = newY;
+      this.direction = direction;
 
-        this.rectangle.setPosition(
-            ARENA_OFFSET_X + (this.gridX * GRID_SIZE) + GRID_SIZE / 2,
-            ARENA_OFFSET_Y + (this.gridY * GRID_SIZE) + GRID_SIZE / 2
-        );
+      this.rectangle.setPosition(
+        ARENA_OFFSET_X + (this.gridX * GRID_SIZE) + GRID_SIZE / 2,
+        ARENA_OFFSET_Y + (this.gridY * GRID_SIZE) + GRID_SIZE / 2
+      );
     }
 
     die() {

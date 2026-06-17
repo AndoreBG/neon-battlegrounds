@@ -6,7 +6,8 @@ import {
     ARENA_OFFSET_Y,
     COLORS,
     DIFFICULTY,
-    DEGUB
+    DEGUB,
+    DIRECTIONS
 } from '../utils/Constants.js';
 
 import { gameManager } from '../managers/GameManager.js';
@@ -88,80 +89,95 @@ export class GameScene extends Phaser.Scene {
         console.log('[GameScene] isMultiplayer:', isMultiplayer);
         console.log('[GameScene] mpData:', mpData);
 
-        // Define posições iniciais diferentes para host e guest
-        let playerStart = { x: 1, y: GRID_ROWS - 2 };
-        let remoteStart = { x: GRID_COLS - 2, y: 1 };
-
-        if (isMultiplayer && mpData) {
-            const isHost = mpData.role === 'host';
-            playerStart = isHost
-                ? { x: 1, y: GRID_ROWS - 2 }
-                : { x: GRID_COLS - 2, y: 1 };
-            remoteStart = isHost
-                ? { x: GRID_COLS - 2, y: 1 }
-                : { x: 1, y: GRID_ROWS - 2 };
-        }
-
         const difficulty = gameManager.getDifficulty() || DIFFICULTY.FACIL;
         const botColor = this.getBotColor(difficulty);
-
-        this.player = new Player(
-            this,
-            this.gridSystem,
-            playerStart.x,
-            playerStart.y,
-            COLORS.PLAYER
-        );
 
         this.remotePlayer = null;
         this.bots = [];
 
-        if (isMultiplayer) {
+        if (isMultiplayer && mpData) {
+            const isHost = mpData.role === 'host';
+
+            // Configurações do jogador local
+            const localColor = isHost ? COLORS.PLAYER : COLORS.HARD;
+            const localStart = isHost
+            ? { x: 1, y: GRID_ROWS - 2 }
+            : { x: GRID_COLS - 2, y: 1 };
+            const localDirection = isHost ? DIRECTIONS.RIGHT : DIRECTIONS.LEFT;
+
+            // Configurações do oponente remoto
+            const remoteColor = isHost ? COLORS.HARD : COLORS.PLAYER;
+            const remoteStart = isHost
+            ? { x: GRID_COLS - 2, y: 1 }
+            : { x: 1, y: GRID_ROWS - 2 };
+            const remoteDirection = isHost ? DIRECTIONS.LEFT : DIRECTIONS.RIGHT;
+
+            this.player = new Player(
+            this,
+            this.gridSystem,
+            localStart.x,
+            localStart.y,
+            localColor
+            );
+            this.player.direction = localDirection;
+            this.player.nextDirection = localDirection;
+
             this.remotePlayer = new RemotePlayer(
+            this,
+            this.gridSystem,
+            remoteStart.x,
+            remoteStart.y,
+            remoteColor
+            );
+            this.remotePlayer.direction = remoteDirection;
+
+        } else {
+            // Singleplayer
+            this.player = new Player(
+            this,
+            this.gridSystem,
+            1,
+            GRID_ROWS - 2,
+            COLORS.PLAYER
+            );
+
+            this.bots.push(
+            new Bot(
                 this,
                 this.gridSystem,
-                remoteStart.x,
-                remoteStart.y,
-                COLORS.HARD
-            );
-        } else {
-            this.bots.push(
-                new Bot(
-                    this,
-                    this.gridSystem,
-                    GRID_COLS - 2,
-                    1,
-                    botColor,
-                    difficulty,
-                    this.player
-                )
+                GRID_COLS - 2,
+                1,
+                botColor,
+                difficulty,
+                this.player
+            )
             );
 
             this.bots.push(
-                new Bot(
-                    this,
-                    this.gridSystem,
-                    GRID_COLS - 2,
-                    GRID_ROWS - 2,
-                    botColor,
-                    difficulty,
-                    this.player
-                )
+            new Bot(
+                this,
+                this.gridSystem,
+                GRID_COLS - 2,
+                GRID_ROWS - 2,
+                botColor,
+                difficulty,
+                this.player
+            )
             );
 
             this.bots.push(
-                new Bot(
-                    this,
-                    this.gridSystem,
-                    Math.floor(GRID_COLS / 2),
-                    1,
-                    botColor,
-                    difficulty,
-                    this.player
-                )
+            new Bot(
+                this,
+                this.gridSystem,
+                Math.floor(GRID_COLS / 2),
+                1,
+                botColor,
+                difficulty,
+                this.player
+            )
             );
         }
-    }
+        }
 
     getBotColor(difficulty) {
 
@@ -405,9 +421,9 @@ export class GameScene extends Phaser.Scene {
         };
 
         this.gameOverHandler = (data) => {
-            if (!this.gameEnded) {
-                this.finishGame(false);
-            }
+        if (!this.gameEnded) {
+            this.finishGame(true);  // oponente morreu, então jogador local vence
+        }
         };
 
         networkManager.on('opponent:move', this.opponentMoveHandler);
