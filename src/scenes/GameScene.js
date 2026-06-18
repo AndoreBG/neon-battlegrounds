@@ -77,10 +77,12 @@ export class GameScene extends Phaser.Scene {
 
         this.events.on('shutdown', () => {
             this.cleanupMultiplayerListeners?.();
+            this.stopCountdownTick?.();
         });
 
         this.events.on('sleep', () => {
             this.cleanupMultiplayerListeners?.();
+            this.stopCountdownTick?.();
         });
 
         // Contagem regressiva antes da partida começar (3, 2, 1, TRON).
@@ -130,39 +132,89 @@ export class GameScene extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Sequência: 3 -> 2 -> 1 -> TRON
-        const sequence = ['3', '2', '1', 'TRON'];
-        let index = 0;
+        this.countdownSequence = ['3', '2', '1', 'TRON'];
+        this.countdownStepShown = -1;     // qual passo já está na tela
+        this.countdownFinished = false;
 
-        const showStep = () => {
-            const value = sequence[index];
-            const isTron = value === 'TRON';
+        // Âncora de tempo REAL (wall clock). No multiplayer vem do momento em
+        // que recebemos game:start (definido na MatchmakingScene); no
+        // singleplayer ancoramos agora. Como usamos Date.now() em vez do
+        // relógio do Phaser, a contagem NÃO congela ao perder o foco da janela.
+        this.countdownStartAt = this.isMultiplayer
+            ? (mpData.countdownStart || Date.now())
+            : Date.now();
+        this.countdownMs = this.isMultiplayer
+            ? (mpData.countdownMs || 3000)
+            : 3000;
 
-            this.countdownNumber.setText(value);
-            this.countdownNumber.setFontSize(isTron ? '120px' : '160px');
+        // Atualiza a contagem por tempo real, mesmo se update() estiver pausado
+        // (ex.: janela em desfoco). Quando a janela voltar ao foco, o número é
+        // recalculado para o valor correto.
+        this.updateCountdown();
+        this._countdownTick = setInterval(() => this.updateCountdown(), 50);
+    }
 
-            // efeito de "pop"
-            this.countdownNumber.setScale(0.6);
-            this.tweens.add({
-                targets: this.countdownNumber,
-                scale: 1,
-                duration: 220,
-                ease: 'Back.Out'
-            });
+    // Calcula qual passo deve estar visível com base no tempo real decorrido.
+    updateCountdown() {
+        if (this.countdownFinished || !this.countdownNumber) {
+            return;
+        }
 
-            index++;
+        const elapsed = Date.now() - this.countdownStartAt;
+        const stepMs = this.countdownMs / 3; // 3, 2, 1 ocupam a duração total
 
-            if (index < sequence.length) {
-                this.time.delayedCall(1000, showStep);
-            } else {
-                // Acabou a contagem (acabou de mostrar "TRON"):
-                // libera o jogo e remove os textos após um instante.
-                this.countdownActive = false;
-                this.time.delayedCall(700, () => this.clearCountdown());
-            }
-        };
+        // index 0..2 => "3","2","1"; index 3 => "TRON"
+        let index = Math.floor(elapsed / stepMs);
+        if (index > 3) index = 3;
+        if (index < 0) index = 0;
 
-        showStep();
+        // Libera o jogo assim que a contagem chega ao "TRON"
+        if (elapsed >= this.countdownMs) {
+            this.countdownActive = false;
+        }
+
+        if (index !== this.countdownStepShown) {
+            this.countdownStepShown = index;
+            this.showCountdownStep(index);
+        }
+
+        // Remove os textos ~700ms depois do "TRON" aparecer
+        if (index === 3 && elapsed >= this.countdownMs + 700) {
+            this.finishCountdown();
+        }
+    }
+
+    showCountdownStep(index) {
+        const value = this.countdownSequence[index];
+        if (!value) return;
+        const isTron = value === 'TRON';
+
+        this.countdownNumber.setText(value);
+        this.countdownNumber.setFontSize(isTron ? '120px' : '160px');
+
+        // efeito de "pop"
+        this.countdownNumber.setScale(0.6);
+        this.tweens.add({
+            targets: this.countdownNumber,
+            scale: 1,
+            duration: 220,
+            ease: 'Back.Out'
+        });
+    }
+
+    finishCountdown() {
+        if (this.countdownFinished) return;
+        this.countdownFinished = true;
+        this.countdownActive = false;
+        this.stopCountdownTick();
+        this.clearCountdown();
+    }
+
+    stopCountdownTick() {
+        if (this._countdownTick) {
+            clearInterval(this._countdownTick);
+            this._countdownTick = null;
+        }
     }
 
     clearCountdown() {

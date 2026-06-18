@@ -1,6 +1,7 @@
 import { COLORS } from '../utils/Constants.js';
 import { gameManager } from '../managers/GameManager.js';
 import { networkManager } from '../managers/NetworkManager.js';
+import { SERVER_URL } from '../config/networkConfig.js';
 
 export class MatchmakingScene extends Phaser.Scene {
   constructor() {
@@ -20,6 +21,9 @@ export class MatchmakingScene extends Phaser.Scene {
       color: '#00ffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
+
+    // ----- Tracker de status do servidor -----
+    this.createServerStatusIndicator();
 
     this.createButton = this.add.text(640, 320, 'CRIAR SALA', {
       fontFamily: 'Arial',
@@ -89,6 +93,10 @@ export class MatchmakingScene extends Phaser.Scene {
       this.scene.start('MenuScene');
     });
 
+    // Para o polling de status quando a cena for encerrada.
+    this.events.once('shutdown', () => this.stopServerStatusPolling());
+    this.events.once('destroy', () => this.stopServerStatusPolling());
+
     networkManager.on('room:created', (data) => {
       this.roomCode = data.code;
       this.showCreatedRoom();
@@ -109,10 +117,94 @@ export class MatchmakingScene extends Phaser.Scene {
       gameManager.setMultiplayerData({
         ...currentData,
         ...data,
-        selfId
+        selfId,
+        // Âncora de tempo real (wall clock) do MOMENTO em que recebemos
+        // game:start. A contagem é calculada a partir daqui usando Date.now(),
+        // por isso ela não "congela" se a janela perder o foco.
+        countdownStart: Date.now(),
+        countdownMs: data.countdown || 3000
       });
       this.scene.start('GameScene');
     });
+  }
+
+  /* ------------------------------------------------------------
+   *  Tracker de status do servidor (health-check)
+   * ---------------------------------------------------------- */
+  createServerStatusIndicator() {
+    // Ponto colorido + texto, no topo da tela.
+    this.statusDot = this.add.circle(478, 160, 8, 0xffcc00).setOrigin(0.5);
+
+    this.serverStatusText = this.add.text(496, 160, 'Verificando servidor...', {
+      fontFamily: 'Arial',
+      fontSize: '18px',
+      color: '#cccccc'
+    }).setOrigin(0, 0.5);
+
+    // Mensagem auxiliar (aparece quando o servidor está acordando/offline).
+    this.serverHintText = this.add.text(640, 185, '', {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#888888'
+    }).setOrigin(0.5);
+
+    this.serverOnline = false;
+
+    // Primeira checagem imediata e depois polling periódico.
+    this.checkServerStatus();
+    this.statusPoll = setInterval(() => this.checkServerStatus(), 4000);
+  }
+
+  setServerStatus(state) {
+    // state: 'checking' | 'online' | 'offline'
+    if (!this.statusDot || !this.serverStatusText) return;
+
+    if (state === 'online') {
+      this.serverOnline = true;
+      this.statusDot.setFillStyle(0x00ff66);
+      this.serverStatusText.setText('Servidor online').setColor('#00ff66');
+      this.serverHintText.setText('');
+    } else if (state === 'checking') {
+      this.statusDot.setFillStyle(0xffcc00);
+      this.serverStatusText.setText('Verificando servidor...').setColor('#cccccc');
+    } else {
+      this.serverOnline = false;
+      this.statusDot.setFillStyle(0xff3355);
+      this.serverStatusText.setText('Servidor offline').setColor('#ff3355');
+      this.serverHintText.setText(
+        'O servidor pode estar hibernando. Aguarde ~30-60s que ele acorda...'
+      );
+    }
+  }
+
+  async checkServerStatus() {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+
+      const res = await fetch(`${SERVER_URL}/health`, {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        this.setServerStatus('online');
+      } else {
+        this.setServerStatus('offline');
+      }
+    } catch (err) {
+      // Falha de rede / timeout / servidor hibernando
+      this.setServerStatus('offline');
+    }
+  }
+
+  stopServerStatusPolling() {
+    if (this.statusPoll) {
+      clearInterval(this.statusPoll);
+      this.statusPoll = null;
+    }
   }
 
   createRoom() {

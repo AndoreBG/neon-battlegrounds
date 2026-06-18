@@ -59,6 +59,16 @@ const io = new Server(httpServer, {
   }
 });
 
+// Health-check leve para o tracker de status do menu de matchmaking.
+// Responde rápido e permite fetch cross-origin (front no GitHub Pages).
+// Útil para detectar quando o serviço (ex.: Render free) está acordando da
+// hibernação.
+app.get('/health', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cache-Control', 'no-store');
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 // Serve arquivos estáticos
 app.use(express.static(path.join(__dirname, '..')));
 
