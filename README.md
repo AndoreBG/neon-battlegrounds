@@ -1,81 +1,45 @@
-# Neon Battlegrounds
+# ⚡ Neon Battlegrounds
 
-Um jogo inspirado nos clássicos **TRON** e **Snake**, desenvolvido utilizando **Phaser 3** no front-end e **Socket.io** com **Node.js** no back-end. Sobreviva e encurrale seu oponente deixando um rastro de luz por onde passa!
+Jogo de arena inspirado em **TRON** e **Snake**: deixe um rastro de luz, encurrale o oponente e sobreviva. Jogue contra bots ou em partidas online 1v1.
 
-🔗 **Link para Teste:** [https://andorebg.github.io/neon-battlegrounds/](https://andorebg.github.io/neon-battlegrounds/)
-
+🎮 **[Jogar](https://andorebg.github.io/neon-battlegrounds/)** · Feito com Phaser 3, Node.js e Socket.io.
 
 ## Funcionalidades
 
-- **Singleplayer:** Jogue contra bots com diferentes níveis de dificuldade.
-- **Multiplayer Online (1v1):** Crie salas exclusivas com códigos (4 dígitos) para desafiar seus amigos.
-- **Estilo Visual Neon:** Gráficos e estética minimalista imersivos inspirados no universo TRON.
-- **Física e Colisões:** Sistema de física responsivo implementado nativamente com Phaser Arcade Physics.
-- **Sistema de Salas:** Matchmaking em tempo real usando WebSockets.
+- **Singleplayer** contra bots (3 dificuldades).
+- **Multiplayer 1v1 online** com salas por código de 4 dígitos.
+- **Servidor autoritativo** (sincronia perfeita no online).
+- Arena que **encolhe**, **power-ups** de velocidade e contagem regressiva `3 → 2 → 1 → TRON`.
 
+## Controles
 
-## Tecnologias Utilizadas
+`WASD` ou `← ↑ → ↓` para mover · `ESC` para o menu.
 
-- **Front-end:** HTML5, JavaScript (ES6 Modules), [Phaser 3](https://phaser.io/) (Engine de Jogos)
-- **Back-end:** [Node.js](https://nodejs.org/), [Express](https://expressjs.com/)
-- **Comunicação:** [Socket.io](https://socket.io/) (WebSockets em tempo real)
+## Testar localmente
 
-<br>
+Requer [Node.js](https://nodejs.org/).
 
-## Como Rodar o Projeto Localmente
-
-### Pré-requisitos
-- Ter o [Node.js](https://nodejs.org/) instalado em sua máquina.
-
-### Passo a passo
-
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/AndoreBG/neon-battlegrounds.git
-   cd neon-battlegrounds
-   ```
-
-2. **Instale as dependências do servidor:**
-   ```bash
-   cd server
-   npm install
-   ```
-
-3. **Inicie o servidor local:**
-   ```bash
-   npm start
-   # ou npm run dev
-   ```
-   *O servidor rodará na porta 3000.*
-
-4. **Acesse o jogo:**
-   Abra o endereço `http://localhost:3000` no seu navegador de preferência para jogar.
-
-<br>
-
-## 📂 Estrutura do Projeto
-
-Abaixo uma visão geral da estrutura principal de diretórios:
-
-```text
-neon-battlegrounds/
-├── server/             # Código fonte do backend (Node.js/Socket.io)
-│   ├── index.js        # Configuração do Express e lógica das salas WebSocket
-│   └── package.json    # Dependências do servidor
-├── src/                # Código fonte do frontend (Phaser 3)
-│   ├── config/         # Configurações globais do jogo
-│   ├── entities/       # Entidades (Player, Bot, RemotePlayer, Trail)
-│   ├── managers/       # Gerenciadores (ex: NetworkManager)
-│   ├── scenes/         # Cenas (Menu, Matchmaking, Game, Difficulty, etc)
-│   ├── systems/        # Lógica de sistemas
-│   ├── utils/          # Funções utilitárias auxiliares
-│   └── main.js         # Ponto de entrada do jogo
-├── index.html          # Estrutura HTML principal
-└── phaser.min.js       # Biblioteca do Phaser minificada
+```bash
+git clone https://github.com/AndoreBG/neon-battlegrounds.git
+cd neon-battlegrounds/server
+npm install
+npm start
 ```
 
-<br>
+Abra **http://localhost:3000**. Para testar o multiplayer, abra em duas abas: numa clique `CRIAR SALA` e copie o código; na outra clique `ENTRAR SALA` e digite o código.
 
-## 📄 Licença
+> **Windows/PowerShell:** se o `npm` for bloqueado, rode `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` ou use o CMD.
 
-Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](./LICENSE) para mais detalhes.
+## Deploy
+
+Front no **GitHub Pages**; servidor (`server/`) em um host Node (Render, Railway, Fly.io). Defina a URL pública do servidor em `src/config/networkConfig.js` (`PROD_SERVER_URL`).
+
+> Em planos grátis, o servidor hiberna e leva ~30–60s para acordar na primeira conexão.
+
+## ⚠️ Tracker mostrando "Servidor offline"?
+
+**É o adblocker.** Extensões como uBlock/AdBlock/Brave Shields bloqueiam a requisição ao `/health`, exibindo "offline" mesmo com o servidor no ar. Se você consegue criar sala e jogar, o servidor **está online** — basta desativar o adblocker na página (ou testar em aba anônima).
+
+## Licença
+
+[MIT](./LICENSE) · Desenvolvido por Mika Games.
