@@ -82,6 +82,9 @@ const MOVE_DELAY = 120; // ms por passo (velocidade normal)
 // o seu acumulador atinge o próprio moveDelay (permite velocidades distintas).
 const TICK_MS = 20;
 
+// Contagem regressiva antes de a partida começar a se mover (3, 2, 1, TRON).
+const COUNTDOWN_MS = 3000;
+
 const DIRECTIONS = {
   UP: { x: 0, y: -1 },
   DOWN: { x: 0, y: 1 },
@@ -192,17 +195,29 @@ function startMatch(room) {
     }
   };
 
-  room.gameState = 'playing';
+  // A partida entra primeiro em contagem regressiva: ninguém se move até a
+  // contagem terminar (tickRoom só age quando gameState === 'playing').
+  room.gameState = 'countdown';
 
-  // Loop de jogo independente do foco de qualquer cliente.
-  // Roda a TICK_MS; cada jogador anda quando seu acumulador atinge moveDelay.
-  room.loop = setInterval(() => tickRoom(room), TICK_MS);
+  room.countdownTimer = setTimeout(() => {
+    if (!rooms[room.code]) return; // sala pode ter sido removida (desconexão)
+    room.countdownTimer = null;
+    room.gameState = 'playing';
+
+    // Loop de jogo independente do foco de qualquer cliente.
+    // Roda a TICK_MS; cada jogador anda quando seu acumulador atinge moveDelay.
+    room.loop = setInterval(() => tickRoom(room), TICK_MS);
+  }, COUNTDOWN_MS);
 }
 
 function stopMatch(room) {
   if (room.loop) {
     clearInterval(room.loop);
     room.loop = null;
+  }
+  if (room.countdownTimer) {
+    clearTimeout(room.countdownTimer);
+    room.countdownTimer = null;
   }
 }
 
@@ -464,7 +479,8 @@ io.on('connection', (socket) => {
     io.to(code).emit('game:start', {
       player1: room.player1,
       player2: room.player2,
-      moveDelay: MOVE_DELAY
+      moveDelay: MOVE_DELAY,
+      countdown: COUNTDOWN_MS
     });
 
     console.log(`[ROOM] ${code} full: ${room.player1} vs ${room.player2}`);

@@ -35,6 +35,9 @@ export class GameScene extends Phaser.Scene {
         this.gameEnded = false;
         this.matchElapsedTime = 0;
 
+        // Enquanto true, nada se move e o input fica bloqueado (contagem 3-2-1-TRON).
+        this.countdownActive = true;
+
         this.isMultiplayer = gameManager.getMultiplayer();
 
         this.gridSystem = new GridSystem(
@@ -79,6 +82,100 @@ export class GameScene extends Phaser.Scene {
         this.events.on('sleep', () => {
             this.cleanupMultiplayerListeners?.();
         });
+
+        // Contagem regressiva antes da partida começar (3, 2, 1, TRON).
+        this.startCountdown();
+    }
+
+    /* ------------------------------------------------------------
+     *  Contagem regressiva 3 - 2 - 1 - TRON
+     * ---------------------------------------------------------- */
+    startCountdown() {
+
+        const mpData = gameManager.getMultiplayerData() || {};
+        const isHost = !this.isMultiplayer || mpData.role === 'host';
+
+        // Cor do jogador local: azul (host/singleplayer) ou vermelho (oponente)
+        const playerColorHex = isHost ? COLORS.PLAYER : COLORS.HARD;
+        const playerColorCss = '#' + playerColorHex.toString(16).padStart(6, '0');
+        const colorName = isHost ? 'AZUL' : 'VERMELHO';
+
+        // "VOCÊ É <COR>" — a palavra da cor aparece na cor correspondente
+        const youAre = this.add.text(640, 250, 'VOCÊ É ', {
+            fontFamily: 'Arial',
+            fontSize: '36px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0, 0.5);
+
+        const colorLabel = this.add.text(0, 250, colorName, {
+            fontFamily: 'Arial',
+            fontSize: '36px',
+            color: playerColorCss,
+            fontStyle: 'bold'
+        }).setOrigin(0, 0.5);
+
+        // Centraliza o conjunto "VOCÊ É <COR>" horizontalmente
+        const totalWidth = youAre.width + colorLabel.width;
+        youAre.x = 640 - totalWidth / 2;
+        colorLabel.x = youAre.x + youAre.width;
+
+        this.countdownColorTexts = [youAre, colorLabel];
+
+        // Número grande da contagem (também na cor do jogador)
+        this.countdownNumber = this.add.text(640, 380, '', {
+            fontFamily: 'Arial',
+            fontSize: '160px',
+            color: playerColorCss,
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Sequência: 3 -> 2 -> 1 -> TRON
+        const sequence = ['3', '2', '1', 'TRON'];
+        let index = 0;
+
+        const showStep = () => {
+            const value = sequence[index];
+            const isTron = value === 'TRON';
+
+            this.countdownNumber.setText(value);
+            this.countdownNumber.setFontSize(isTron ? '120px' : '160px');
+
+            // efeito de "pop"
+            this.countdownNumber.setScale(0.6);
+            this.tweens.add({
+                targets: this.countdownNumber,
+                scale: 1,
+                duration: 220,
+                ease: 'Back.Out'
+            });
+
+            index++;
+
+            if (index < sequence.length) {
+                this.time.delayedCall(1000, showStep);
+            } else {
+                // Acabou a contagem (acabou de mostrar "TRON"):
+                // libera o jogo e remove os textos após um instante.
+                this.countdownActive = false;
+                this.time.delayedCall(700, () => this.clearCountdown());
+            }
+        };
+
+        showStep();
+    }
+
+    clearCountdown() {
+        if (this.countdownNumber) {
+            this.countdownNumber.destroy();
+            this.countdownNumber = null;
+        }
+        if (this.countdownColorTexts) {
+            for (const t of this.countdownColorTexts) {
+                t.destroy();
+            }
+            this.countdownColorTexts = null;
+        }
     }
 
     createEntities() {
@@ -219,6 +316,11 @@ export class GameScene extends Phaser.Scene {
      * ---------------------------------------------------------- */
     update(time, delta) {
         if (this.gameEnded) {
+            return;
+        }
+
+        // Durante a contagem regressiva nada se move nem aceita input.
+        if (this.countdownActive) {
             return;
         }
 
