@@ -23,18 +23,16 @@ Requer [Node.js](https://nodejs.org/).
 git clone https://github.com/AndoreBG/neon-battlegrounds.git
 cd neon-battlegrounds/server
 npm install
-npm start
+node index.js
 ```
 
 Abra **http://localhost:3000**. Para testar o multiplayer, abra em duas abas: numa clique `CRIAR SALA` e copie o código; na outra clique `ENTRAR SALA` e digite o código.
-
-> **Windows/PowerShell:** se o `npm` for bloqueado, rode `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` ou use o CMD.
 
 ## Deploy
 
 Front no **GitHub Pages**; servidor (`server/`) em um host Node (Render, Railway, Fly.io). Defina a URL pública do servidor em `src/config/networkConfig.js` (`PROD_SERVER_URL`).
 
-> Em planos grátis, o servidor hiberna e leva ~30–60s para acordar na primeira conexão.
+> No meu caso eu escolhi utilizar o servidor gratuito do Render. No plano grátis do Render, se o servidor ficar muito tempo ocioso, ele hiberna e leva ~30–60s para acordar na primeira conexão.
 
 ## ⚠️ Tracker mostrando "Servidor offline"?
 
