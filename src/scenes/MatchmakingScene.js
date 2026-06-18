@@ -178,10 +178,12 @@ export class MatchmakingScene extends Phaser.Scene {
   }
 
   async checkServerStatus() {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3500);
+    // Timeout maior para tolerar o "cold start" do Render (servidor acordando).
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
+    try {
+      // SERVER_URL já vem sem barra final (ver networkConfig.js), evitando "//health".
       const res = await fetch(`${SERVER_URL}/health`, {
         method: 'GET',
         cache: 'no-store',
@@ -189,13 +191,28 @@ export class MatchmakingScene extends Phaser.Scene {
       });
       clearTimeout(timeout);
 
-      if (res.ok) {
+      if (!res.ok) {
+        this.setServerStatus('offline');
+        return;
+      }
+
+      // Confirma que é REALMENTE o endpoint de health (JSON { status: 'ok' }),
+      // e não o HTML do fallback (que também responde 200).
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {
+        data = null;
+      }
+
+      if (data && data.status === 'ok') {
         this.setServerStatus('online');
       } else {
         this.setServerStatus('offline');
       }
     } catch (err) {
       // Falha de rede / timeout / servidor hibernando
+      clearTimeout(timeout);
       this.setServerStatus('offline');
     }
   }
