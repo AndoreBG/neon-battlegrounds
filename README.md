@@ -1,4 +1,4 @@
-# ⚡ Neon Battlegrounds
+# ⚡ Neon Battlegrounds ![Static Badge](https://img.shields.io/badge/status-%20finalizado-green)
 
 Jogo de arena inspirado em **TRON** e **Snake**: deixe um rastro de luz, encurrale o oponente e sobreviva. Jogue contra bots ou em partidas online 1v1.
 
