@@ -1,4 +1,8 @@
-# ⚡ Neon Battlegrounds ![Static Badge](https://img.shields.io/badge/status-%20finalizado-green)
+# ⚡ Neon Battlegrounds
+
+![Unity](https://img.shields.io/badge/Unity-2D-black?style=for-the-badge&logo=unity)
+![Status](https://img.shields.io/badge/Status-Finalizado-green?style=for-the-badge)
+![Gênero](https://img.shields.io/badge/Gêneros-Action%20|%20Snake%20|%20Multiplayer%20Online%20|%20Singleplayer%20PvE-red?style=for-the-badge)
 
 Jogo de arena inspirado em **TRON** e **Snake**: deixe um rastro de luz, encurrale o oponente e sobreviva. Jogue contra bots ou em partidas online 1v1.
 
