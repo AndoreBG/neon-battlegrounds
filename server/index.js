@@ -69,6 +69,19 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+app.get('/status', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cache-Control', 'no-store');
+
+  // Resposta no formato que o Shields.io entende
+  res.json({
+    schemaVersion: 1,
+    label: 'servidor',
+    message: 'online',
+    color: 'brightgreen'
+  });
+});
+
 // Serve arquivos estáticos
 app.use(express.static(path.join(__dirname, '..')));
 
